@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v3.3 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v3.7 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v3.3</title>
+<title>LUMIIA Mur de Graff — v3.7</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -96,7 +96,20 @@
   .col[aria-checked="true"]{outline:5px solid var(--acid);outline-offset:3px;z-index:2}
 
   /* colonne droite : outils, calibre, mur */
-  #droite{right:22px;transform-origin:right top}
+  #droite{right:0;transform-origin:right top;transition:right .3s cubic-bezier(.3,.85,.3,1)}
+  /* pastille d'escamotage, accrochee au bord gauche du panneau a hauteur du calibre */
+  #poignee{
+    position:absolute;left:-62px;top:292px;width:54px;height:54px;border-radius:50%;
+    border:2px solid rgba(242,240,230,.18);background:rgba(16,15,10,.92);
+    color:var(--trace);cursor:pointer;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.55);
+    transition:transform .3s cubic-bezier(.3,.85,.3,1),border-color .1s;
+  }
+  #poignee:hover{border-color:var(--acid)}
+  #poignee:active{background:#2c2921}
+  #poignee svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  #poignee.ferme{transform:rotate(180deg)}
   #outils{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
   #tailles{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:51px;gap:7px}
   #actions{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
@@ -133,6 +146,8 @@
   #menu .titre{margin-bottom:9px}
   #menuBtns{display:grid;gap:10px}
   #menuBtns .btn{width:124px;height:100px}
+  #menuBtns .btn.croix{border-color:rgba(209,68,31,.5);color:#eab5a5}
+  #menuBtns .btn.croix:hover{border-color:var(--rouille)}
   #menuBtns .btn svg{width:38px;height:38px}
   #menuFleche{
     position:absolute;right:-16px;width:0;height:0;
@@ -164,10 +179,13 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v3.3<br>F = plein écran</i>
+    <i>v3.7</i>
   </div>
 
   <aside class="panneau" id="droite">
+   <button id="poignee" aria-label="Replier les outils">
+     <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>
+   </button>
    <div id="vueOutils">
     <div class="bloc">
       <div class="titre">Outil</div>
@@ -233,7 +251,7 @@
 <script>
 (function(){
 "use strict";
-var VERSION = "v3.3";
+var VERSION = "v3.7";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -668,6 +686,10 @@ var iFond = 0;
 function dessinerFond(){
   if(!W || !H) return;
   mctx.clearRect(0,0,W,H);
+  if(!coloriage && iFond<0){                      // aucun support : fond noir
+    mctx.fillStyle="#07070a"; mctx.fillRect(0,0,W,H);
+    return;
+  }
   if(coloriage){                                  // feuille de papier
     mctx.fillStyle="#fbf9f2"; mctx.fillRect(0,0,W,H);
     var g=mctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);
@@ -1021,13 +1043,28 @@ OUTILS.forEach(function(o){
 var menu=document.getElementById("menu"), menuTitre=document.getElementById("menuTitre"),
     menuBtns=document.getElementById("menuBtns"), menuFleche=document.getElementById("menuFleche");
 
+/* Case "Aucun", posee en bas a droite des deux menus : elle retire le support
+   sans toucher a la peinture deja posee — le mur ou le dessin disparait, la
+   fresque reste sur fond noir. */
+var AUCUN = { id:"aucun", nom:"Aucun", croix:true,
+              ico:'<path d="M18 6 6 18M6 6l12 12"/>' };
+function retirerSupport(){
+  coloriage=false; iDessin=-1; iFond=-1;
+  dessinerFond(); dessinerTraits(); majSupport();
+}
 var MENUS = {
-  mur: { titre:"Le mur", items:FONDS,
-    actif:function(it){ return !coloriage && FONDS[iFond].id===it.id; },
-    set:function(it,n){ coloriage=false; iDessin=-1; iFond=n; dessinerFond(); dessinerTraits(); majSupport(); } },
-  coloriage: { titre:"Coloriage", items:DESSINS,
-    actif:function(it){ return coloriage && DESSINS[iDessin] && DESSINS[iDessin].id===it.id; },
-    set:function(it,n){ coloriage=true; iDessin=n; dessinerFond(); dessinerTraits(); majSupport(); } },
+  mur: { titre:"Le mur", items:FONDS.concat([AUCUN]),
+    actif:function(it){ return !coloriage && (it.croix ? iFond<0 : (iFond>=0 && FONDS[iFond].id===it.id)); },
+    set:function(it,n){
+      if(it.croix){ retirerSupport(); return; }
+      coloriage=false; iDessin=-1; iFond=n; dessinerFond(); dessinerTraits(); majSupport();
+    } },
+  coloriage: { titre:"Coloriage", items:DESSINS.concat([AUCUN]),
+    actif:function(it){ return it.croix ? (!coloriage && iFond<0) : (coloriage && DESSINS[iDessin] && DESSINS[iDessin].id===it.id); },
+    set:function(it,n){
+      if(it.croix){ retirerSupport(); return; }
+      coloriage=true; iDessin=n; dessinerFond(); dessinerTraits(); majSupport();
+    } },
   fx: { titre:"Effet",
     actif:function(it){ return etat.fx===it.id; },
     set:function(it){ etat.fx=it.id; },
@@ -1067,7 +1104,9 @@ function ouvrirMenu(btn, type){
   menuBtns.style.gridTemplateColumns="repeat("+Math.min(5,conf.items.length)+",124px)";
   conf.items.forEach(function(it,n){
     var b=document.createElement("button");
-    b.className="btn"; b.setAttribute("role","radio");
+    b.className = it.croix ? "btn croix" : "btn";
+    if(it.croix) b.style.gridColumn = String(Math.min(5, conf.items.length));
+    b.setAttribute("role","radio");
     b.setAttribute("aria-checked", conf.actif(it)?"true":"false");
     b.innerHTML='<svg viewBox="0 0 24 24">'+it.ico+'</svg><span>'+it.nom+'</span>';
     b.addEventListener("pointerdown", function(ev){
@@ -1596,11 +1635,59 @@ function telecharger(url, nom){
   document.body.appendChild(a); a.click();
   setTimeout(function(){ a.remove(); if(url.indexOf("blob:")===0) URL.revokeObjectURL(url); }, 4000);
 }
+/* L'enseigne du haut est du HTML : elle n'existe pas dans les canvas. On la
+   redessine donc dans l'image exportee, a la meme echelle que l'ecran. */
+function coinsArrondis(g,x,y,w,h,r){
+  g.beginPath();
+  g.moveTo(x+r,y);
+  g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r);     g.arcTo(x,y,x+w,y,r);
+  g.closePath();
+}
+function signer(g,LW,LH){
+  var k=Math.max(.45, LW/1920), fs=Math.round(46*k), fv=Math.round(12*k);
+  var titre="Impact, Haettenschweiler, 'Arial Narrow', sans-serif";
+  g.save();
+  g.textBaseline="alphabetic";
+  g.font="400 "+fs+"px "+titre;
+  var t1="LUMIIA", t2=" MUR DE GRAFF";
+  var w1=g.measureText(t1).width, w2=g.measureText(t2).width;
+  g.font="800 "+fv+"px system-ui, 'Segoe UI', Roboto, sans-serif";
+  var wv=g.measureText(VERSION).width;
+  var pad=Math.round(30*k), ecart=Math.round(20*k);
+  var lw=Math.round(w1+w2+ecart+wv+pad*2), lh=Math.round(76*k);
+  var x=Math.round((LW-lw)/2), y=Math.round(22*k);
+
+  coinsArrondis(g,x,y,lw,lh,Math.round(14*k));
+  g.fillStyle="rgba(16,15,10,.82)"; g.fill();
+  g.strokeStyle="rgba(242,240,230,.16)"; g.lineWidth=Math.max(1,2*k); g.stroke();
+
+  var bx=x+pad, by=y+Math.round(lh*0.68);
+  g.save();
+  g.transform(1,0,-Math.tan(7*Math.PI/180),1,0,0);   // le meme biais qu'a l'ecran
+  g.font="400 "+fs+"px "+titre;
+  var biais=Math.tan(7*Math.PI/180)*by;
+  g.fillStyle="#c8ff1e"; g.fillText(t1, bx+biais, by);
+  g.fillStyle="#f2f0e6"; g.fillText(t2, bx+biais+w1, by);
+  g.restore();
+
+  // la coulure verte sous le premier mot
+  var cx=Math.round(bx+w1*0.72), cy=y+Math.round(lh*0.74), ch=Math.round(26*k);
+  g.fillStyle="rgba(200,255,30,.85)";
+  g.fillRect(cx, cy, Math.max(2,Math.round(5*k)), ch);
+  g.beginPath(); g.arc(cx+Math.round(2.5*k), cy+ch+Math.round(5*k), Math.max(2,Math.round(5.5*k)), 0, TAU); g.fill();
+
+  g.font="800 "+fv+"px system-ui, 'Segoe UI', Roboto, sans-serif";
+  g.fillStyle="rgba(242,240,230,.42)";
+  g.fillText(VERSION, x+lw-pad-wv, y+Math.round(lh*0.60));
+  g.restore();
+}
 function composer(){                          // les couches dessinees, sans les panneaux
   var c=document.createElement("canvas"); c.width=W; c.height=H;
   var g=c.getContext("2d");
   g.drawImage(mur,0,0); g.drawImage(cv,0,0);
   if(coloriage) g.drawImage(tr,0,0);
+  signer(g,W,H);
   return c;
 }
 function reduire(source, largeur, qualite){
@@ -1644,7 +1731,8 @@ function enregistrer(){
                          envoyer("graffwall/"+h.jour+"/"+id+"_v.jpg", petit) ]);
   }).then(function(urls){
     var fiche={ ts:h.ts, heure:h.heure, url:urls[0], vig:urls[1],
-                support: coloriage ? ("Coloriage "+(DESSINS[iDessin]?DESSINS[iDessin].nom:"")) : FONDS[iFond].nom,
+                support: coloriage ? ("Coloriage "+(DESSINS[iDessin]?DESSINS[iDessin].nom:""))
+                                   : (iFond>=0 ? FONDS[iFond].nom : "Fond noir"),
                 mode: coloriage?"coloriage":"mur", w:W, h:H,
                 joueur:null, session:null };      // places reservees pour la connexion des joueurs
     return fetch(RTDB+"/graffwall/index/"+h.jour+"/"+id+".json",
@@ -1674,7 +1762,7 @@ btnGarder.addEventListener("pointerdown", function(ev){
    est pose ; s'il decroche, on garde la progression pendant 450 ms avant de
    tout remettre a zero — un contact qui saute ne fait plus repartir de zero. */
 var effacer=document.getElementById("effacer"), jauge=document.getElementById("jauge");
-var DUREE_EFF=3000, effPose=false, effCumul=0, effT0=0, effBoucle=null, effLache=null;
+var DUREE_EFF=2500, effPose=false, effCumul=0, effT0=0, effBoucle=null, effLache=null;
 
 function effTic(){
   var now=performance.now();
@@ -1695,7 +1783,7 @@ effacer.addEventListener("pointerdown", function(ev){
   ev.stopPropagation(); fermerMenu(); fermerCouleurs();
   clearTimeout(effLache);
   effPose=true; effT0=performance.now();
-  if(!effBoucle) effBoucle=setInterval(effTic,50);
+  if(!effBoucle) effBoucle=setInterval(effTic,30);
 });
 function effRelache(){
   if(!effBoucle) return;
@@ -1713,7 +1801,7 @@ document.getElementById("son").addEventListener("pointerdown", function(){
 });
 var btnFond=document.getElementById("fond"), btnColo=document.getElementById("coloriage");
 function majSupport(){
-  btnFond.setAttribute("aria-checked", coloriage?"false":"true");
+  btnFond.setAttribute("aria-checked", (!coloriage && iFond>=0)?"true":"false");
   btnColo.setAttribute("aria-checked", coloriage?"true":"false");
 }
 btnFond.addEventListener("pointerdown", function(ev){
@@ -1741,10 +1829,27 @@ document.addEventListener("keydown", function(e){
   if(k==="z") annuler();
   if(k==="s") enregistrer();
   if(k==="d"){ diag.actif=!diag.actif; jauge.hidden=!diag.actif; }
+  if(k==="t") basculerRepli();
   if(k==="c") document.body.classList.toggle("kiosque");
 });
 
 /* ================= dimensionnement ================= */
+/* Escamotage : le panneau glisse hors de l'ecran vers la droite, seule la
+   pastille reste accrochee au bord. Le decalage vaut la largeur reelle du
+   panneau, donc il depend de l'echelle et se recalcule a chaque ajustement. */
+var replie=false, poignee=null;
+function majRepli(){
+  if(!poignee) return;
+  var w = Math.round(droiteEl.offsetWidth*ECHD);
+  droiteEl.style.right = replie ? (-w+"px") : "0px";
+  poignee.classList.toggle("ferme", replie);
+  poignee.setAttribute("aria-label", replie ? "Ouvrir les outils" : "Replier les outils");
+}
+function basculerRepli(){
+  replie=!replie;
+  fermerMenu(); fermerCouleurs();
+  majRepli();
+}
 function placerPanneau(el,k,vh,origine){
   el.style.transformOrigin = origine;
   el.style.transform = "scale("+k+")";
@@ -1765,6 +1870,7 @@ function ajuster(){
   enseigneEl.style.transform = "translateX(-50%) scale("+k+")";
   // ancre vers le bas : sur un ecran geant, le haut n'est pas a portee de main
   placerPanneau(droiteEl, k, vh, "right top");
+  majRepli();
 
   var hz = vh;
   zoneEl.style.height = hz+"px";
@@ -1794,6 +1900,8 @@ window.addEventListener("resize", function(){
 document.addEventListener("fullscreenchange", function(){
   clearTimeout(tRedim); tRedim = setTimeout(ajuster, 220);
 });
+poignee=document.getElementById("poignee");
+poignee.addEventListener("pointerdown", function(ev){ ev.stopPropagation(); clac(); basculerRepli(); });
 majIconeRouleau();
 majSupport();
 majPastilleCouleur();
