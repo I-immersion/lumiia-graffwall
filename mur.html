@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<!-- LUMIIA MUR DE GRAFF — v3.3 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>LUMIIA Mur de Graff — v3.3</title>
+<style>
+  :root{
+    --beton:#5f5a52;
+    --dock:#16150f;
+    --dock2:#221f18;
+    --trace:#f2f0e6;
+    --acid:#c8ff1e;
+    --rouille:#d1441f;
+    --ligne:rgba(242,240,230,.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{
+    width:100%;height:100%;overflow:hidden;background:#0a0908;
+    user-select:none;-webkit-user-select:none;touch-action:none;
+    font-family:system-ui,"Segoe UI",Roboto,sans-serif;
+  }
+  body.kiosque{cursor:none}
+  #stage{
+    position:absolute;top:0;left:0;width:100%;height:100%;
+    background:#0a0908;overflow:hidden;
+  }
+
+  /* ---------- MUR ---------- */
+  #zone{position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden}
+  #zone canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+  #traits{pointer-events:none}   /* la couche des traits ne doit pas voler les touches */
+  #ombre{
+    position:absolute;inset:0;pointer-events:none;
+    box-shadow:inset 0 -60px 90px -40px rgba(0,0,0,.75), inset 0 0 240px rgba(0,0,0,.45);
+  }
+
+  /* ---------- PANNEAUX FLOTTANTS ---------- */
+  .panneau{
+    position:absolute;z-index:20;
+    background:rgba(16,15,10,.86);
+    border:2px solid rgba(242,240,230,.14);
+    border-radius:14px;padding:11px 15px 13px;
+    box-shadow:0 12px 40px rgba(0,0,0,.55);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    display:flex;flex-direction:column;gap:11px;
+  }
+  .bloc{display:flex;flex-direction:column;gap:5px}
+  .titre{
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(242,240,230,.42);font-weight:700;padding-left:2px;
+  }
+
+  /* enseigne */
+  #enseigne{
+    position:absolute;top:22px;left:50%;z-index:20;
+    transform-origin:top center;
+    display:flex;align-items:center;gap:20px;
+    background:rgba(16,15,10,.82);border:2px solid rgba(242,240,230,.14);
+    border-radius:14px;padding:14px 30px 16px;
+    box-shadow:0 12px 40px rgba(0,0,0,.55);
+  }
+  #enseigne b{
+    font-family:Impact,Haettenschweiler,"Arial Narrow",sans-serif;
+    font-size:46px;line-height:1;letter-spacing:.015em;color:var(--trace);
+    text-transform:uppercase;transform:skewX(-7deg);white-space:nowrap;
+  }
+  #enseigne b span{color:var(--acid)}
+  #enseigne i{
+    font-style:normal;font-size:11px;letter-spacing:.2em;
+    color:rgba(242,240,230,.38);font-weight:700;white-space:nowrap;
+  }
+  #coulure{
+    position:absolute;left:151px;top:58px;width:5px;height:28px;
+    background:var(--acid);opacity:.85;border-radius:0 0 5px 5px;
+  }
+  #coulure::after{content:"";position:absolute;left:-3px;bottom:-9px;width:11px;height:11px;border-radius:50%;background:var(--acid)}
+
+  /* colonne gauche : les bombes */
+  #vueOutils,#vueCouleurs{display:flex;flex-direction:column;gap:11px}
+  #vueOutils[hidden],#vueCouleurs[hidden]{display:none}
+  .pastilleCouleur{
+    display:block;width:32px;height:32px;border-radius:50%;
+    border:3px solid rgba(0,0,0,.4);box-shadow:0 0 0 2px rgba(242,240,230,.45);
+  }
+  #couleurs{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:73px;gap:7px}
+  .col{
+    border:0;border-radius:5px;position:relative;cursor:pointer;
+    box-shadow:inset 0 -14px 20px rgba(0,0,0,.34), 0 2px 0 rgba(0,0,0,.6);
+  }
+  .col::after{
+    content:"";position:absolute;inset:6px 6px auto 6px;height:9px;border-radius:3px;
+    background:rgba(255,255,255,.22);
+  }
+  .col[aria-checked="true"]{outline:5px solid var(--acid);outline-offset:3px;z-index:2}
+
+  /* colonne droite : outils, calibre, mur */
+  #droite{right:22px;transform-origin:right top}
+  #outils{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
+  #tailles{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:51px;gap:7px}
+  #actions{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
+  #support{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
+
+  /* boutons */
+  .btn{
+    border:2px solid rgba(242,240,230,.16);background:#2c2921;color:var(--trace);
+    border-radius:7px;cursor:pointer;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:5px;
+    font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    transition:background .08s,border-color .08s;
+  }
+  .btn svg{width:28px;height:28px;fill:none;stroke:var(--trace);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+  .btn[aria-checked="true"]{background:var(--trace);border-color:var(--trace);color:#16150f}
+  .btn[aria-checked="true"] svg{stroke:#16150f}
+  .btn:active{background:#3d382d}
+  .pastille{display:block;border-radius:50%;background:var(--trace)}
+  .btn[aria-checked="true"] .pastille{background:#16150f}
+  #effacer{position:relative;overflow:hidden;border-color:rgba(209,68,31,.55)}
+  #jauge{
+    position:absolute;left:0;bottom:0;width:0;height:100%;
+    background:var(--rouille);opacity:.9;transition:width .06s linear;
+  }
+  #effacer span,#effacer svg{position:relative;z-index:1}
+
+  /* sous-menu d'outil : s'ouvre a gauche de la colonne droite */
+  #menu{
+    position:absolute;z-index:30;transform-origin:top right;
+    background:rgba(18,17,12,.97);border:3px solid var(--acid);border-radius:12px;
+    padding:14px 16px 16px;box-shadow:0 14px 44px rgba(0,0,0,.7);
+  }
+  #menu[hidden]{display:none}
+  #menu .titre{margin-bottom:9px}
+  #menuBtns{display:grid;gap:10px}
+  #menuBtns .btn{width:124px;height:100px}
+  #menuBtns .btn svg{width:38px;height:38px}
+  #menuFleche{
+    position:absolute;right:-16px;width:0;height:0;
+    border-top:13px solid transparent;border-bottom:13px solid transparent;
+    border-left:16px solid var(--acid);
+  }
+
+  /* toast */
+  #toast{
+    position:absolute;left:50%;bottom:34px;transform:translateX(-50%);z-index:25;
+    background:rgba(10,9,8,.9);border:2px solid var(--acid);color:var(--trace);
+    padding:13px 26px;border-radius:6px;font-size:19px;font-weight:700;letter-spacing:.05em;
+    opacity:0;transition:opacity .18s;pointer-events:none;text-transform:uppercase;
+  }
+  #toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <div id="zone">
+    <canvas id="mur"></canvas>
+    <canvas id="peinture"></canvas>
+    <canvas id="traits"></canvas>
+    <div id="ombre"></div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="enseigne">
+    <b><span>LUMIIA</span> MUR DE GRAFF</b>
+    <div id="coulure"></div>
+    <i>v3.3<br>F = plein écran</i>
+  </div>
+
+  <aside class="panneau" id="droite">
+   <div id="vueOutils">
+    <div class="bloc">
+      <div class="titre">Outil</div>
+      <div id="outils" role="radiogroup"></div>
+    </div>
+    <div class="bloc">
+      <div class="titre">Calibre</div>
+      <div id="tailles" role="radiogroup"></div>
+    </div>
+    <div class="bloc">
+      <div class="titre">Actions</div>
+      <div id="actions">
+        <button class="btn" id="annuler">
+          <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10H8"/></svg>
+          <span>Annuler</span>
+        </button>
+        <button class="btn" id="effacer">
+          <div id="jauge"></div>
+          <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>
+          <span>Effacer</span>
+        </button>
+        <button class="btn" id="garder">
+          <svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h7V4"/><rect x="8" y="13" width="8" height="7"/></svg>
+          <span>Enregistrer</span>
+        </button>
+        <button class="btn" id="son" aria-checked="true">
+          <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+          <span>Son</span>
+        </button>
+      </div>
+    </div>
+    <div class="bloc">
+      <div class="titre">Support</div>
+      <div id="support">
+        <button class="btn" id="fond">
+          <svg viewBox="0 0 24 24"><path d="M3 5h18v14H3z"/><path d="M3 12h18"/><path d="M9 5v7"/><path d="M15 12v7"/></svg>
+          <span>Mur</span>
+        </button>
+        <button class="btn" id="coloriage">
+          <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.7 0 2-1.2 1.3-2-.8-1 .1-2 1.2-2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="11" cy="7.5" r="1.2"/><circle cx="15.5" cy="8.5" r="1.2"/></svg>
+          <span>Coloriage</span>
+        </button>
+      </div>
+    </div>
+   </div>
+
+   <div id="vueCouleurs" hidden>
+    <div class="bloc">
+      <div class="titre">Couleurs</div>
+      <div id="couleurs" role="radiogroup"></div>
+    </div>
+   </div>
+  </aside>
+
+  <div id="menu" hidden>
+    <div class="titre" id="menuTitre"></div>
+    <div id="menuBtns"></div>
+    <div id="menuFleche"></div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+var VERSION = "v3.3";
+var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
+
+/* ================= adaptation a la resolution reelle ================= */
+/* Le dock est concu en 1920 de large et mis a l'echelle ; le mur prend
+   TOUTE la hauteur restante, quel que soit le format (4:3, 16:9, 16:10). */
+var ECH = 1, ECHD = 1, tRedim = null;
+var zoneEl     = document.getElementById("zone"),
+    enseigneEl = document.getElementById("enseigne"),
+    droiteEl   = document.getElementById("droite"),
+    vueOutils  = document.getElementById("vueOutils"),
+    vueCouleurs= document.getElementById("vueCouleurs");
+
+/* ================= le mur ================= */
+var mur = document.getElementById("mur"), mctx = mur.getContext("2d");
+var W = 0, H = 0, TAU = Math.PI*2;
+
+function alea(a,b){ return a + Math.random()*(b-a); }
+
+/* ---- briques du decor commun ---- */
+function taches(n){
+  for(var i=0;i<n;i++){
+    var x=alea(0,W), y=alea(0,H), r=alea(90,340);
+    var t=Math.random()<.5 ? "0,0,0" : "255,255,255";
+    var g=mctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0,"rgba("+t+","+alea(.02,.07).toFixed(3)+")");
+    g.addColorStop(1,"rgba("+t+",0)");
+    mctx.fillStyle=g; mctx.beginPath(); mctx.arc(x,y,r,0,TAU); mctx.fill();
+  }
+}
+function grain(force){
+  var img=mctx.getImageData(0,0,W,H), d=img.data, i, n;
+  for(i=0;i<d.length;i+=4){
+    n=(Math.random()*force*2-force)|0;
+    d[i]+=n; d[i+1]+=n; d[i+2]+=n;
+  }
+  mctx.putImageData(img,0,0);
+}
+function vieuxTags(n,op){
+  mctx.lineCap="round";
+  for(var i=0;i<n;i++){
+    mctx.strokeStyle="rgba("+(Math.random()<.5?"0,0,0":"255,255,255")+","+op+")";
+    mctx.lineWidth=alea(9,26);
+    var px=alea(60,W-60), py=alea(80,H-80);
+    mctx.beginPath(); mctx.moveTo(px,py);
+    for(var j=0;j<4;j++){
+      px+=alea(-140,190); py+=alea(-80,80);
+      mctx.quadraticCurveTo(px+alea(-60,60), py+alea(-90,90), px, py);
+    }
+    mctx.stroke();
+  }
+}
+function salissureSol(n){
+  for(var i=0;i<n;i++){
+    mctx.fillStyle="rgba(0,0,0,"+alea(.03,.11).toFixed(3)+")";
+    mctx.beginPath();
+    mctx.ellipse(alea(0,W), alea(H*0.86,H), alea(4,26), alea(2,7), 0, 0, TAU);
+    mctx.fill();
+  }
+}
+
+/* ---- les cinq murs ---- */
+function murBeton(){
+  mctx.fillStyle="#5f5a52"; mctx.fillRect(0,0,W,H);
+  taches(70);
+  mctx.strokeStyle="rgba(0,0,0,.16)"; mctx.lineWidth=3;
+  for(var i=1;i<4;i++){ mctx.beginPath(); mctx.moveTo(i*W/4,0); mctx.lineTo(i*W/4,H); mctx.stroke(); }
+  mctx.beginPath(); mctx.moveTo(0,H*0.52); mctx.lineTo(W,H*0.52); mctx.stroke();
+  mctx.strokeStyle="rgba(255,255,255,.05)"; mctx.lineWidth=2;
+  for(i=1;i<4;i++){ mctx.beginPath(); mctx.moveTo(i*W/4+3,0); mctx.lineTo(i*W/4+3,H); mctx.stroke(); }
+  vieuxTags(9,.045); grain(15); salissureSol(160);
+}
+
+function murBrique(){
+  mctx.fillStyle="#4a423c"; mctx.fillRect(0,0,W,H);          // mortier
+  var bh=44, bw=116, jt=9, y, x, ligne=0, dec;
+  for(y=-bh; y<H+bh; y+=bh+jt){
+    dec = (ligne%2) ? (bw+jt)/2 : 0; ligne++;
+    for(x=-bw+dec; x<W+bw; x+=bw+jt){
+      var r=alea(112,152)|0, v=alea(52,74)|0, b=alea(44,58)|0;
+      if(Math.random()<.08){ r=alea(80,105)|0; v=alea(72,90)|0; b=alea(70,88)|0; } // brique grise
+      mctx.fillStyle="rgb("+r+","+v+","+b+")";
+      mctx.fillRect(x,y,bw,bh);
+      mctx.fillStyle="rgba(0,0,0,"+alea(.04,.16).toFixed(3)+")";
+      mctx.fillRect(x, y+bh-alea(3,9), bw, alea(2,7));
+      if(Math.random()<.25){
+        mctx.fillStyle="rgba(255,255,255,.05)";
+        mctx.fillRect(x+alea(2,40), y+alea(2,10), alea(20,60), alea(3,10));
+      }
+    }
+  }
+  taches(40); vieuxTags(5,.05); grain(11); salissureSol(120);
+}
+
+function murRideau(){
+  var per=27;
+  for(var x=0;x<W;x+=per){
+    var g=mctx.createLinearGradient(x,0,x+per,0);
+    g.addColorStop(0,"#3d4045"); g.addColorStop(.42,"#787d84");
+    g.addColorStop(.62,"#5c6067"); g.addColorStop(1,"#33363a");
+    mctx.fillStyle=g; mctx.fillRect(x,0,per,H);
+  }
+  mctx.strokeStyle="rgba(0,0,0,.14)"; mctx.lineWidth=2;
+  for(var y=0;y<H;y+=70){ mctx.beginPath(); mctx.moveTo(0,y); mctx.lineTo(W,y); mctx.stroke(); }
+  for(var i=0;i<90;i++){                                   // rouille
+    var rx=alea(0,W), ry=alea(H*.45,H), rr=alea(10,70);
+    var rg=mctx.createRadialGradient(rx,ry,0,rx,ry,rr);
+    rg.addColorStop(0,"rgba(150,74,32,"+alea(.06,.2).toFixed(3)+")");
+    rg.addColorStop(1,"rgba(150,74,32,0)");
+    mctx.fillStyle=rg; mctx.beginPath(); mctx.arc(rx,ry,rr,0,TAU); mctx.fill();
+  }
+  taches(30); grain(9); salissureSol(140);
+}
+
+function rRect(x,y,w,h,r){
+  mctx.beginPath();
+  mctx.moveTo(x+r,y);
+  mctx.arcTo(x+w,y,x+w,y+h,r); mctx.arcTo(x+w,y+h,x,y+h,r);
+  mctx.arcTo(x,y+h,x,y,r);     mctx.arcTo(x,y,x+w,y,r);
+  mctx.closePath();
+}
+function murWagon(){
+  // Rame TER vue de cote, a quai. La grande surface lisse sous les baies
+  // est la zone a peindre ; les vitres se peignent aussi, comme en vrai.
+  var yToit=Math.round(H*0.085), yHaut=Math.round(H*0.155),
+      yVit =Math.round(H*0.205), hVit=Math.round(H*0.188),
+      yBas =Math.round(H*0.775), yJupe=Math.round(H*0.845),
+      i,x,y,g;
+
+  // ciel et arriere-plan de voies
+  g=mctx.createLinearGradient(0,0,0,yToit);
+  g.addColorStop(0,"#9fa8b2"); g.addColorStop(1,"#c3c9cf");
+  mctx.fillStyle=g; mctx.fillRect(0,0,W,yToit);
+  mctx.fillStyle="rgba(60,70,80,.35)";
+  for(i=0;i<9;i++) mctx.fillRect(alea(0,W), 0, alea(3,7), alea(H*0.02,H*0.075)); // poteaux catenaire
+
+  // toit
+  g=mctx.createLinearGradient(0,yToit,0,yHaut);
+  g.addColorStop(0,"#4a5058"); g.addColorStop(.6,"#6e757d"); g.addColorStop(1,"#878e96");
+  mctx.fillStyle=g; mctx.fillRect(0,yToit,W,yHaut-yToit);
+  mctx.fillStyle="rgba(0,0,0,.35)"; mctx.fillRect(0,yToit,W,5);
+  for(x=Math.round(W*0.1); x<W; x+=Math.round(W*0.26)){          // blocs de clim
+    mctx.fillStyle="#565c64"; mctx.fillRect(x,yToit-Math.round(H*0.022),Math.round(W*0.1),Math.round(H*0.024));
+    mctx.fillStyle="rgba(255,255,255,.12)"; mctx.fillRect(x,yToit-Math.round(H*0.022),Math.round(W*0.1),4);
+  }
+
+  // caisse inox
+  g=mctx.createLinearGradient(0,yHaut,0,yBas);
+  g.addColorStop(0,"#c9ced4"); g.addColorStop(.30,"#b3b9c0");
+  g.addColorStop(.72,"#a7adb5"); g.addColorStop(1,"#9299a1");
+  mctx.fillStyle=g; mctx.fillRect(0,yHaut,W,yBas-yHaut);
+  for(i=0;i<130;i++){                                            // inox brosse
+    mctx.fillStyle="rgba(255,255,255,"+alea(.02,.09).toFixed(3)+")";
+    mctx.fillRect(0, alea(yHaut,yBas), W, alea(1,3));
+  }
+  mctx.fillStyle="rgba(27,58,134,.92)";                          // liseres bleus
+  mctx.fillRect(0,yHaut,W,Math.round(H*0.026));
+  mctx.fillStyle="rgba(255,255,255,.5)"; mctx.fillRect(0,yHaut+Math.round(H*0.026),W,4);
+  mctx.fillStyle="rgba(27,58,134,.8)";
+  mctx.fillRect(0,yBas-Math.round(H*0.016),W,Math.round(H*0.016));
+
+  // Facade sequentielle : les portes s'intercalent entre les baies au lieu
+  // d'etre posees par-dessus. Huit travees de largeur egale.
+  var trav=["b","b","p","b","b","b","p","b"], n=trav.length,
+      marge=Math.round(W*0.011), lb=Math.round((W-marge*(n+1))/n), cx0=marge;
+
+  trav.forEach(function(type){
+    var x=cx0; cx0 += lb+marge;
+    if(type==="b"){
+      mctx.fillStyle="rgba(20,24,30,.9)";                        // encadrement
+      rRect(x-7,yVit-7,lb+14,hVit+14,18); mctx.fill();
+      g=mctx.createLinearGradient(x,yVit,x+lb,yVit+hVit);        // verre
+      g.addColorStop(0,"#2b3540"); g.addColorStop(.42,"#46545f");
+      g.addColorStop(.55,"#5d6b74"); g.addColorStop(1,"#232b33");
+      mctx.fillStyle=g; rRect(x,yVit,lb,hVit,13); mctx.fill();
+      mctx.save(); rRect(x,yVit,lb,hVit,13); mctx.clip();
+      mctx.fillStyle="rgba(255,255,255,.10)";
+      mctx.beginPath();
+      mctx.moveTo(x-40,yVit+hVit); mctx.lineTo(x+lb*0.55,yVit-20);
+      mctx.lineTo(x+lb*0.78,yVit-20); mctx.lineTo(x+lb*0.2,yVit+hVit);
+      mctx.closePath(); mctx.fill();
+      mctx.fillStyle="rgba(190,205,215,.12)";
+      mctx.fillRect(x,yVit+hVit*0.64,lb,hVit*0.09);
+      mctx.restore();
+      mctx.fillStyle="rgba(20,24,30,.7)";                        // imposte
+      mctx.fillRect(x, yVit+Math.round(hVit*0.28), lb, 5);
+    } else {
+      var pt=yHaut+Math.round(H*0.032), pb=yBas-Math.round(H*0.012);
+      mctx.fillStyle="rgba(238,240,242,.96)";                    // vantaux clairs
+      mctx.fillRect(x,pt,lb,pb-pt);
+      mctx.fillStyle="rgba(28,32,38,.9)";                        // joints
+      mctx.fillRect(x-6,pt,6,pb-pt); mctx.fillRect(x+lb,pt,6,pb-pt);
+      mctx.fillRect(x+lb/2-3,pt,6,pb-pt);
+      var vx=x+Math.round(lb*0.09), vw=Math.round(lb*0.82), vh=Math.round(hVit*0.94);
+      mctx.fillStyle="rgba(18,22,28,.92)";
+      rRect(vx-6,yVit-6,vw+12,vh+12,16); mctx.fill();
+      g=mctx.createLinearGradient(vx,yVit,vx+vw,yVit+vh);
+      g.addColorStop(0,"#2a333d"); g.addColorStop(.55,"#4f5c66"); g.addColorStop(1,"#222a31");
+      mctx.fillStyle=g; rRect(vx,yVit,vw,vh,11); mctx.fill();
+      mctx.fillStyle="rgba(28,32,38,.85)"; mctx.fillRect(x+lb/2-3,yVit,6,vh);
+      mctx.fillStyle="rgba(27,58,134,.92)";                      // bouton d'ouverture
+      mctx.beginPath(); mctx.arc(x+Math.round(lb*0.22), yVit+vh+Math.round(H*0.045), 13, 0, TAU); mctx.fill();
+      mctx.fillStyle="rgba(27,58,134,.92)";
+      mctx.beginPath(); mctx.arc(x+Math.round(lb*0.78), yVit+vh+Math.round(H*0.045), 13, 0, TAU); mctx.fill();
+      mctx.fillStyle="rgba(40,46,54,.45)";                       // marchepied
+      mctx.fillRect(x+Math.round(lb*0.12), pb-Math.round(H*0.022), Math.round(lb*0.76), 8);
+    }
+  });
+
+  // marquages
+  mctx.fillStyle="rgba(40,46,54,.8)";
+  mctx.font="bold "+Math.round(H*0.030)+"px Impact, Arial Narrow, sans-serif";
+  mctx.fillText("2", Math.round(W*0.392), yVit-Math.round(H*0.010));
+  mctx.font="bold "+Math.round(H*0.019)+"px Arial, sans-serif";
+  mctx.fillText("B 84 512", Math.round(W*0.655), yBas-Math.round(H*0.028));
+  mctx.fillStyle="rgba(40,46,54,.35)";
+  mctx.fillRect(Math.round(W*0.47), yBas-Math.round(H*0.07), Math.round(W*0.05), Math.round(H*0.035));
+
+  // salissures de roulement en bas de caisse
+  for(i=0;i<120;i++){
+    x=alea(0,W); y=alea(yBas-H*0.10,yBas);
+    mctx.fillStyle="rgba(58,52,44,"+alea(.03,.14).toFixed(3)+")";
+    mctx.fillRect(x,y,alea(20,120),alea(2,9));
+  }
+
+  // jupe, bogies, voie
+  var rr=Math.round(H*0.040), yR=yJupe+rr-Math.round(H*0.006), yRail=yR+rr-5;
+  g=mctx.createLinearGradient(0,yBas,0,yJupe);
+  g.addColorStop(0,"#6d747c"); g.addColorStop(1,"#3d434a");
+  mctx.fillStyle=g; mctx.fillRect(0,yBas,W,yJupe-yBas);
+  mctx.fillStyle="rgba(0,0,0,.45)"; mctx.fillRect(0,yBas,W,6);
+  mctx.fillStyle="#12151a"; mctx.fillRect(0,yJupe,W,H-yJupe);
+
+  for(i=0;i<1500;i++){                                            // ballast
+    x=alea(0,W); y=alea(yRail-H*0.008,H);
+    var v=alea(58,138)|0;
+    mctx.fillStyle="rgba("+v+","+(v-4)+","+(v-12)+","+alea(.25,.8).toFixed(2)+")";
+    mctx.fillRect(x,y,alea(2,7),alea(2,5));
+  }
+  for(x=-60;x<W;x+=Math.round(W/18)){                             // traverses
+    mctx.fillStyle="rgba(48,36,26,.95)";
+    mctx.fillRect(x, yRail+Math.round(H*0.012), Math.round(W/28), Math.round(H*0.034));
+  }
+  g=mctx.createLinearGradient(0,yRail,0,yRail+15);
+  g.addColorStop(0,"#b9bfc5"); g.addColorStop(.4,"#7c828a"); g.addColorStop(1,"#2f3238");
+  mctx.fillStyle=g; mctx.fillRect(0,yRail,W,15);
+
+  [W*0.21, W*0.79].forEach(function(bx){                          // bogies
+    mctx.fillStyle="rgba(0,0,0,.5)";
+    mctx.beginPath(); mctx.ellipse(bx,yRail+5,rr*2.7,rr*0.32,0,0,TAU); mctx.fill();
+    mctx.fillStyle="#2b2e33"; mctx.fillRect(bx-rr*2.2, yJupe-8, rr*4.4, rr*1.3);
+    mctx.fillStyle="rgba(255,255,255,.06)"; mctx.fillRect(bx-rr*2.2, yJupe-8, rr*4.4, 5);
+    for(var s=-1;s<=1;s+=2){
+      var cx=bx+s*rr*1.3;
+      mctx.fillStyle="#3f434a"; mctx.beginPath(); mctx.arc(cx,yR,rr,0,TAU); mctx.fill();
+      mctx.fillStyle="#212429"; mctx.beginPath(); mctx.arc(cx,yR,rr*0.84,0,TAU); mctx.fill();
+      mctx.strokeStyle="#868c94"; mctx.lineWidth=5;
+      mctx.beginPath(); mctx.arc(cx,yR,rr*0.56,0,TAU); mctx.stroke();
+      mctx.fillStyle="#565b62"; mctx.beginPath(); mctx.arc(cx,yR,rr*0.22,0,TAU); mctx.fill();
+    }
+    mctx.fillStyle="#1a1d21"; mctx.fillRect(bx-rr*1.35, yR-6, rr*2.7, 12);
+  });
+
+  for(i=0;i<420;i++){                                             // herbes folles
+    x=alea(0,W); y=alea(yRail+H*0.02,H);
+    mctx.strokeStyle= Math.random()<.45 ? "rgba(126,138,74,"+alea(.25,.7).toFixed(2)+")"
+                                        : "rgba(158,146,86,"+alea(.2,.6).toFixed(2)+")";
+    mctx.lineWidth=alea(1,2.6);
+    mctx.beginPath(); mctx.moveTo(x,y);
+    mctx.quadraticCurveTo(x+alea(-10,10), y-alea(8,26), x+alea(-18,18), y-alea(16,48));
+    mctx.stroke();
+  }
+
+  mctx.save();                                                    // vieux tags sur la caisse
+  mctx.beginPath(); mctx.rect(0,yHaut,W,yBas-yHaut); mctx.clip();
+  vieuxTags(5,.05);
+  mctx.restore();
+  taches(14); grain(7);
+}
+
+function murPalissade(){
+  mctx.fillStyle="#2b241c"; mctx.fillRect(0,0,W,H);
+  var lp=88, x, i;
+  for(x=0;x<W;x+=lp+5){
+    var t=alea(.82,1.16);
+    var g=mctx.createLinearGradient(x,0,x+lp,0);
+    g.addColorStop(0,"rgb("+(90*t|0)+","+(72*t|0)+","+(52*t|0)+")");
+    g.addColorStop(.5,"rgb("+(112*t|0)+","+(90*t|0)+","+(64*t|0)+")");
+    g.addColorStop(1,"rgb("+(84*t|0)+","+(66*t|0)+","+(48*t|0)+")");
+    mctx.fillStyle=g; mctx.fillRect(x,0,lp,H);
+    mctx.strokeStyle="rgba(0,0,0,.20)"; mctx.lineWidth=1.4;   // veines
+    for(i=0;i<9;i++){
+      var vx=x+alea(4,lp-4);
+      mctx.beginPath(); mctx.moveTo(vx,0);
+      for(var y=0;y<H;y+=70) mctx.quadraticCurveTo(vx+alea(-7,7), y+35, vx+alea(-4,4), y+70);
+      mctx.stroke();
+    }
+    if(Math.random()<.6){                                     // noeud
+      var nx=x+alea(16,lp-16), ny=alea(60,H-60);
+      mctx.fillStyle="rgba(48,34,22,.55)";
+      mctx.beginPath(); mctx.ellipse(nx,ny,alea(7,13),alea(5,9),0,0,TAU); mctx.fill();
+      mctx.strokeStyle="rgba(48,34,22,.3)"; mctx.lineWidth=2;
+      mctx.beginPath(); mctx.ellipse(nx,ny,alea(15,24),alea(10,16),0,0,TAU); mctx.stroke();
+    }
+  }
+  taches(30); vieuxTags(4,.05); grain(12); salissureSol(110);
+}
+
+function murFaience(){                      // tres clair, tres structure
+  mctx.fillStyle="#d9d5cb"; mctx.fillRect(0,0,W,H);   // joint
+  var cw=126, ch=64, jt=7, y, x, l=0;
+  for(y=-ch; y<H+ch; y+=ch+jt){
+    var dec=(l%2)?(cw+jt)/2:0; l++;
+    for(x=-cw+dec; x<W+cw; x+=cw+jt){
+      var t=alea(.97,1.03);
+      mctx.fillStyle="rgb("+Math.min(255,242*t|0)+","+Math.min(255,240*t|0)+","+Math.min(255,232*t|0)+")";
+      mctx.fillRect(x,y,cw,ch);
+      var g=mctx.createLinearGradient(x,y,x,y+ch);      // biseau
+      g.addColorStop(0,"rgba(255,255,255,.75)");
+      g.addColorStop(.14,"rgba(255,255,255,0)");
+      g.addColorStop(.86,"rgba(0,0,0,0)");
+      g.addColorStop(1,"rgba(0,0,0,.10)");
+      mctx.fillStyle=g; mctx.fillRect(x,y,cw,ch);
+      if(Math.random()<.10){ mctx.fillStyle="rgba(120,110,95,"+alea(.03,.09).toFixed(3)+")"; mctx.fillRect(x,y,cw,ch); }
+    }
+  }
+  taches(22); grain(5); salissureSol(70);
+}
+
+function murPlatre(){                       // tres clair, lisse
+  mctx.fillStyle="#eceadf"; mctx.fillRect(0,0,W,H);
+  for(var i=0;i<170;i++){                   // traces de truelle
+    mctx.save();
+    mctx.translate(alea(0,W), alea(0,H)); mctx.rotate(alea(-.5,.5));
+    mctx.fillStyle= Math.random()<.5 ? "rgba(255,255,255,"+alea(.15,.5).toFixed(2)+")"
+                                     : "rgba(178,170,152,"+alea(.04,.12).toFixed(3)+")";
+    mctx.fillRect(-alea(60,240)/2, 0, alea(60,240), alea(6,26));
+    mctx.restore();
+  }
+  taches(26); grain(6); salissureSol(60);
+}
+
+function murParpaing(){                     // structure, gris moyen
+  mctx.fillStyle="#6f6a61"; mctx.fillRect(0,0,W,H);
+  var bw=196, bh=92, jt=11, y, x, l=0;
+  for(y=-bh; y<H+bh; y+=bh+jt){
+    var dec=(l%2)?(bw+jt)/2:0; l++;
+    for(x=-bw+dec; x<W+bw; x+=bw+jt){
+      var t=alea(.9,1.1);
+      mctx.fillStyle="rgb("+(146*t|0)+","+(142*t|0)+","+(132*t|0)+")";
+      mctx.fillRect(x,y,bw,bh);
+      var g=mctx.createLinearGradient(x,y,x,y+bh);
+      g.addColorStop(0,"rgba(255,255,255,.10)"); g.addColorStop(1,"rgba(0,0,0,.16)");
+      mctx.fillStyle=g; mctx.fillRect(x,y,bw,bh);
+      for(var k=0;k<40;k++){                 // porosite du beton
+        mctx.fillStyle="rgba(0,0,0,"+alea(.04,.14).toFixed(3)+")";
+        mctx.fillRect(x+alea(4,bw-4), y+alea(4,bh-4), alea(1,4), alea(1,4));
+      }
+    }
+  }
+  taches(34); vieuxTags(4,.05); grain(12); salissureSol(130);
+}
+
+function murArdoise(){                      // tres sombre, structure
+  mctx.fillStyle="#1a1c1f"; mctx.fillRect(0,0,W,H);
+  var dh=78, y, x, l=0;
+  for(y=-dh; y<H+dh; y+=dh){
+    l++;
+    for(x=-140+((l%2)?70:0); x<W+140; x+=alea(120,215)){
+      var w2=alea(120,210), t=alea(.75,1.35);
+      mctx.fillStyle="rgb("+(42*t|0)+","+(45*t|0)+","+(50*t|0)+")";
+      mctx.beginPath();
+      mctx.moveTo(x,y); mctx.lineTo(x+w2,y+alea(-4,4));
+      mctx.lineTo(x+w2+alea(-6,6), y+dh); mctx.lineTo(x+alea(-6,6), y+dh);
+      mctx.closePath(); mctx.fill();
+      mctx.strokeStyle="rgba(0,0,0,.6)"; mctx.lineWidth=2.5; mctx.stroke();
+      var g=mctx.createLinearGradient(x,y,x+w2,y+dh);
+      g.addColorStop(0,"rgba(255,255,255,.05)"); g.addColorStop(1,"rgba(255,255,255,0)");
+      mctx.fillStyle=g; mctx.fill();
+    }
+  }
+  taches(30); grain(9); salissureSol(90);
+}
+
+function murTunnel(){                       // tres sombre, halo de lampe
+  mctx.fillStyle="#17161a"; mctx.fillRect(0,0,W,H);
+  var g=mctx.createRadialGradient(W*.5,H*.34,0,W*.5,H*.4,W*.62);
+  g.addColorStop(0,"rgba(190,180,150,.20)");
+  g.addColorStop(.45,"rgba(120,115,100,.07)");
+  g.addColorStop(1,"rgba(0,0,0,0)");
+  mctx.fillStyle=g; mctx.fillRect(0,0,W,H);
+  mctx.strokeStyle="rgba(255,255,255,.045)"; mctx.lineWidth=3;
+  for(var i=1;i<6;i++){ mctx.beginPath(); mctx.moveTo(i*W/6,0); mctx.lineTo(i*W/6,H); mctx.stroke(); }
+  mctx.fillStyle="rgba(0,0,0,.5)"; mctx.fillRect(0,H*.78,W,H*.22);
+  for(i=0;i<70;i++){                        // suintements
+    mctx.fillStyle="rgba(0,0,0,"+alea(.05,.2).toFixed(3)+")";
+    mctx.fillRect(alea(0,W), alea(0,H*.8), alea(2,7), alea(30,220));
+  }
+  taches(40); vieuxTags(6,.05); grain(10); salissureSol(150);
+}
+
+function murTole(){                         // structure, metal perfore
+  var g=mctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,"#7d818a"); g.addColorStop(.5,"#5e626a"); g.addColorStop(1,"#494d55");
+  mctx.fillStyle=g; mctx.fillRect(0,0,W,H);
+  var p=34, x, y, l=0;
+  for(y=p/2; y<H; y+=p*0.86){
+    l++;
+    for(x=(l%2?p/2:p); x<W; x+=p){
+      mctx.fillStyle="rgba(0,0,0,.42)";
+      mctx.beginPath(); mctx.arc(x,y,7,0,TAU); mctx.fill();
+      mctx.strokeStyle="rgba(255,255,255,.14)"; mctx.lineWidth=1.6;
+      mctx.beginPath(); mctx.arc(x,y-1,7.5,Math.PI*1.1,Math.PI*1.9); mctx.stroke();
+    }
+  }
+  taches(24); grain(8); salissureSol(90);
+}
+
+var FONDS = [
+  { id:"beton",     nom:"Béton",     f:murBeton,      ico:'<rect x="3" y="4" width="18" height="16"/><path d="M9 4v16M15 4v16M3 12h18"/>' },
+  { id:"brique",    nom:"Brique",    f:murBrique,     ico:'<rect x="3" y="5" width="18" height="14"/><path d="M3 10h18M3 15h18M8 5v5M14 10v5M8 15v4M16 5v5"/>' },
+  { id:"rideau",    nom:"Rideau",    f:murRideau,     ico:'<path d="M5 3v18M9 3v18M13 3v18M17 3v18M21 3v18"/>' },
+  { id:"wagon",     nom:"Train TER",     f:murWagon,      ico:'<rect x="2" y="6" width="20" height="9"/><path d="M9 6v9M15 6v9"/><circle cx="6.5" cy="18" r="2"/><circle cx="17.5" cy="18" r="2"/><path d="M2 4h20"/>' },
+  { id:"palissade", nom:"Palissade", f:murPalissade,  ico:'<path d="M5 3v18M12 3v18M19 3v18M3 8h18M3 16h18"/>' },
+  { id:"faience",   nom:"Faïence",   f:murFaience,    ico:'<rect x="3" y="6" width="8" height="5"/><rect x="13" y="6" width="8" height="5"/><rect x="3" y="13" width="8" height="5"/><rect x="13" y="13" width="8" height="5"/>' },
+  { id:"platre",    nom:"Plâtre",    f:murPlatre,     ico:'<rect x="3" y="4" width="18" height="16"/><path d="M6 9h7M11 14h7"/>' },
+  { id:"parpaing",  nom:"Parpaing",  f:murParpaing,   ico:'<rect x="3" y="5" width="18" height="6"/><rect x="3" y="13" width="18" height="6"/><path d="M12 5v6M7 13v6M17 13v6"/>' },
+  { id:"ardoise",   nom:"Ardoise",   f:murArdoise,    ico:'<path d="M3 7h7l1 5H4zM13 7h8l-1 5h-7zM5 14h8l-1 5H4zM16 14h5l-1 5h-5z"/>' },
+  { id:"tunnel",    nom:"Tunnel",    f:murTunnel,     ico:'<path d="M4 20V11a8 8 0 0 1 16 0v9"/><circle cx="12" cy="9" r="2.5"/>' },
+  { id:"tole",      nom:"Tôle",      f:murTole,       ico:'<circle cx="7" cy="7" r="1.6"/><circle cx="12" cy="7" r="1.6"/><circle cx="17" cy="7" r="1.6"/><circle cx="9.5" cy="12" r="1.6"/><circle cx="14.5" cy="12" r="1.6"/><circle cx="7" cy="17" r="1.6"/><circle cx="12" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/>' }
+];
+var iFond = 0;
+function dessinerFond(){
+  if(!W || !H) return;
+  mctx.clearRect(0,0,W,H);
+  if(coloriage){                                  // feuille de papier
+    mctx.fillStyle="#fbf9f2"; mctx.fillRect(0,0,W,H);
+    var g=mctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);
+    g.addColorStop(0,"rgba(255,255,255,.5)"); g.addColorStop(1,"rgba(150,140,120,.12)");
+    mctx.fillStyle=g; mctx.fillRect(0,0,W,H);
+    grain(4);
+    return;
+  }
+  FONDS[iFond].f();
+}
+
+/* ================= COLORIAGE : les huit dessins ================= */
+/* Repere de conception 1000x700, redimensionne en "contain" a l'ecran.
+   Regle absolue : chaque zone coloriable est un contour FERME, sinon la
+   couleur fuit dans le dessin entier. */
+var tr = document.getElementById("traits"), trc = tr.getContext("2d");
+var coloriage=false, iDessin=0, traitsData=null;
+var masque=document.createElement("canvas"), mq=masque.getContext("2d");
+var tampon=document.createElement("canvas"), tp=tampon.getContext("2d");
+var seau=document.createElement("canvas"), sq=seau.getContext("2d");
+
+function L(c,pts,ferme){                       // polyligne
+  c.beginPath(); c.moveTo(pts[0],pts[1]);
+  for(var i=2;i<pts.length;i+=2) c.lineTo(pts[i],pts[i+1]);
+  if(ferme!==false) c.closePath();
+  c.stroke();
+}
+function E(c,x,y,rx,ry,rot){                   // ellipse
+  c.beginPath(); c.ellipse(x,y,rx,ry,rot||0,0,TAU); c.stroke();
+}
+function R(c,x,y,w,h){ c.beginPath(); c.rect(x,y,w,h); c.stroke(); }
+function A(c,x,y,r,d,f){ c.beginPath(); c.arc(x,y,r,d,f); c.stroke(); }
+
+var DESSINS = [
+  { id:"chat", nom:"Chat", ico:'<path d="M5 10 4 4l4 3h8l4-3-1 6"/><path d="M4 10c0 6 3.5 10 8 10s8-4 8-10"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/>',
+    d:function(c){
+      L(c,[335,190, 290,55, 425,130]);          // oreille gauche
+      L(c,[665,190, 710,55, 575,130]);          // oreille droite
+      E(c,500,265,190,172);                     // tete
+      E(c,425,235,38,48); E(c,575,235,38,48);   // yeux
+      L(c,[500,300, 464,336, 536,336]);         // museau
+      A(c,472,358,38,0,Math.PI); A(c,528,358,38,0,Math.PI);
+      L(c,[315,300, 165,268],false); L(c,[312,330, 158,348],false);
+      L(c,[685,300, 835,268],false); L(c,[688,330, 842,348],false);
+      c.beginPath();                            // corps
+      c.moveTo(360,430); c.bezierCurveTo(310,520, 320,650, 380,650);
+      c.lineTo(620,650); c.bezierCurveTo(680,650, 690,520, 640,430);
+      c.closePath(); c.stroke();
+      c.beginPath();                            // queue
+      c.moveTo(675,600); c.bezierCurveTo(800,610, 860,500, 800,410);
+      c.bezierCurveTo(778,378, 828,352, 856,392);
+      c.bezierCurveTo(930,505, 850,668, 668,652);
+      c.closePath(); c.stroke();
+      E(c,420,660,58,26); E(c,570,660,58,26);   // pattes
+      L(c,[0,690, 1000,690],false);
+    }},
+  { id:"maison", nom:"Maison", ico:'<path d="M4 11 12 4l8 7v9H4z"/><path d="M10 20v-6h4v6"/>',
+    d:function(c){
+      L(c,[190,340, 500,120, 810,340]);        // toit
+      R(c,220,340,560,300);                    // facade
+      R(c,440,470,120,170);                    // porte
+      E(c,545,555,10,10);
+      R(c,275,395,120,110); L(c,[335,395, 335,505],false); L(c,[275,450, 395,450],false);
+      R(c,605,395,120,110); L(c,[665,395, 665,505],false); L(c,[605,450, 725,450],false);
+      R(c,640,180,70,120);                     // cheminee
+      A(c,880,150,80,0,TAU);                   // soleil
+      var i,a;
+      for(i=0;i<8;i++){ a=i*TAU/8;
+        L(c,[880+Math.cos(a)*100, 150+Math.sin(a)*100, 880+Math.cos(a)*140, 150+Math.sin(a)*140],false); }
+      L(c,[0,640, 1000,640],false);            // sol
+      c.beginPath();                          // nuage
+      c.moveTo(95,180);
+      c.bezierCurveTo(55,180, 52,138, 95,132);
+      c.bezierCurveTo(100,92, 158,88, 176,118);
+      c.bezierCurveTo(205,88, 252,110, 244,142);
+      c.bezierCurveTo(278,148, 272,180, 244,180);
+      c.closePath(); c.stroke();
+    }},
+  { id:"poisson", nom:"Poisson", ico:'<path d="M3 12c3-5 9-6 13-2 1-3 4-4 5-3-1 2-1 4 0 5-1 3-4 3-5 1-4 4-10 4-13-1z"/>',
+    d:function(c){
+      c.beginPath();                            // corps
+      c.moveTo(330,350);
+      c.bezierCurveTo(380,180, 640,180, 700,350);
+      c.bezierCurveTo(640,520, 380,520, 330,350);
+      c.closePath(); c.stroke();
+      L(c,[700,350, 862,230, 862,470]);         // queue
+      A(c,398,300,24,0,TAU);                    // oeil
+      c.beginPath();                            // branchie
+      c.moveTo(452,252); c.quadraticCurveTo(420,350, 452,448); c.stroke();
+      A(c,555,352,58,-Math.PI*0.78,-Math.PI*0.22);
+      A(c,632,352,58,-Math.PI*0.78,-Math.PI*0.22);
+      A(c,594,300,58,Math.PI*0.22,Math.PI*0.78);
+      L(c,[468,226, 528,112, 588,232]);         // nageoire dorsale
+      L(c,[476,472, 532,580, 588,466]);         // nageoire ventrale
+      A(c,282,140,36,0,TAU); A(c,212,86,22,0,TAU); A(c,330,58,15,0,TAU);
+      c.beginPath();
+      c.moveTo(0,620);
+      for(var x=0;x<=1000;x+=100) c.quadraticCurveTo(x+25,585,x+50,620);
+      c.stroke();
+    }},
+  { id:"fleur", nom:"Fleur", ico:'<circle cx="12" cy="9" r="2.5"/><path d="M12 3.5A2.6 2.6 0 0 1 12 6.5M12 11.5v0M8.5 5.5A2.6 2.6 0 0 0 10.4 7.4M15.5 5.5a2.6 2.6 0 0 1-1.9 1.9M6 9a2.6 2.6 0 0 0 2.6 0M18 9a2.6 2.6 0 0 1-2.6 0M12 11.5V21"/>',
+    d:function(c){
+      var i,a;
+      R(c,398,316,34,314);                      // tige
+      E(c,300,470,92,44,-0.45); E(c,530,545,92,44,0.45);  // feuilles
+      for(i=0;i<8;i++){ a=i*TAU/8;
+        E(c, 415+Math.cos(a)*128, 250+Math.sin(a)*128, 66, 42, a); }
+      A(c,415,250,62,0,TAU);                    // coeur
+      A(c,415,250,30,0,TAU);
+      E(c,712,258,70,46,-0.3); E(c,868,258,70,46,0.3);   // papillon : ailes hautes
+      E(c,730,348,52,34,0.3);  E(c,850,348,52,34,-0.3);   // ailes basses
+      E(c,790,300,20,62);                                  // corps
+      L(c,[782,244, 742,182],false); L(c,[798,244, 838,182],false);
+      A(c,740,178,11,0,TAU); A(c,840,178,11,0,TAU);
+      L(c,[0,640, 1000,640],false);
+    }},
+  { id:"voiture", nom:"Voiture", ico:'<path d="M3 14l2-5h14l2 5v4H3z"/><circle cx="7.5" cy="18" r="2"/><circle cx="16.5" cy="18" r="2"/>',
+    d:function(c){
+      L(c,[130,470, 175,330, 400,330, 430,190, 690,190, 745,330, 880,340, 895,470]); // carrosserie
+      L(c,[130,470, 895,470],false);
+      L(c,[455,215, 445,320, 590,320, 590,215]); // vitre avant
+      L(c,[620,215, 620,320, 720,320, 665,215]); // vitre arriere
+      A(c,300,470,88,0,TAU); A(c,300,470,40,0,TAU);
+      A(c,720,470,88,0,TAU); A(c,720,470,40,0,TAU);
+      E(c,865,395,30,22); E(c,150,400,26,20);
+      L(c,[0,570, 1000,570],false);
+      for(var x=60;x<1000;x+=180) R(c,x,600,110,18);
+    }},
+  { id:"fusee", nom:"Fusée", ico:'<path d="M12 2c3 3 4 7 4 11l-4 4-4-4c0-4 1-8 4-11z"/><circle cx="12" cy="9" r="1.8"/><path d="M8 13 5 17l4-1M16 13l3 4-4-1"/>',
+    d:function(c){
+      c.beginPath(); c.moveTo(470,90);         // fuselage
+      c.bezierCurveTo(590,200, 620,380, 600,520);
+      c.lineTo(340,520);
+      c.bezierCurveTo(320,380, 350,200, 470,90);
+      c.closePath(); c.stroke();
+      A(c,470,270,72,0,TAU); A(c,470,270,44,0,TAU);
+      L(c,[340,400, 215,545, 340,520]);        // aileron gauche
+      L(c,[600,400, 725,545, 600,520]);        // aileron droit
+      L(c,[380,520, 380,560, 560,560, 560,520]);
+      L(c,[400,560, 400,660, 470,700, 540,660, 540,560]); // flamme
+      A(c,140,180,72,0,TAU); E(c,140,180,120,34,-0.4);    // planete
+      A(c,880,470,54,0,TAU);
+      var et=[830,120, 930,230, 200,600, 90,420, 760,90];
+      for(var i=0;i<et.length;i+=2){
+        var x=et[i],y=et[i+1];
+        L(c,[x,y-26, x+9,y-9, x+26,y, x+9,y+9, x,y+26, x-9,y+9, x-26,y, x-9,y-9]);
+      }
+    }},
+  { id:"dino", nom:"Dinosaure", ico:'<path d="M3 17c0-4 3-7 7-7 1-3 4-4 6-2 3 0 5 2 5 5 0 4-4 6-9 6H3z"/>',
+    d:function(c){
+      c.beginPath();
+      c.moveTo(145,556);                         // pointe de la queue
+      c.bezierCurveTo(235,520, 262,452, 298,392);
+      c.bezierCurveTo(338,308, 448,272, 548,298);  // dos
+      c.bezierCurveTo(578,205, 700,190, 742,262);  // cou
+      c.bezierCurveTo(812,275, 818,352, 752,378);  // tete
+      c.bezierCurveTo(700,398, 640,378, 600,398);  // gorge
+      c.bezierCurveTo(562,452, 425,472, 332,458);  // ventre
+      c.bezierCurveTo(258,446, 196,500, 145,556);
+      c.closePath(); c.stroke();
+      A(c,712,252,20,0,TAU);                     // oeil
+      L(c,[772,320, 812,320],false);             // bouche
+      L(c,[336,442, 322,650, 404,650, 406,452]); // patte avant
+      L(c,[556,438, 546,650, 628,650, 632,420]); // patte arriere
+      L(c,[300,382, 338,296, 382,362]);          // plaques dorsales
+      L(c,[392,340, 438,252, 486,318]);
+      L(c,[498,308, 542,232, 578,300]);
+      L(c,[0,668, 1000,668],false);
+      E(c,872,612,62,24); E(c,168,706,72,30);
+    }},
+  { id:"bateau", nom:"Bateau", ico:'<path d="M3 17h18l-2 4H5zM12 3v12M12 5l6 8h-6M12 7 7 15h5"/>',
+    d:function(c){
+      L(c,[200,480, 250,600, 750,600, 800,480]); // coque
+      R(c,485,120,30,360);                     // mat
+      L(c,[485,150, 300,470, 485,470]);        // grande voile
+      L(c,[515,190, 515,470, 700,470]);        // foc
+      L(c,[515,120, 640,150, 515,180]);        // fanion
+      c.beginPath(); c.moveTo(0,640);
+      for(var x=0;x<=1000;x+=90) c.quadraticCurveTo(x+22,610,x+45,640);
+      c.stroke();
+      c.beginPath(); c.moveTo(0,700);
+      for(x=0;x<=1000;x+=90) c.quadraticCurveTo(x+22,670,x+45,700);
+      c.stroke();
+      A(c,880,130,72,0,TAU);                   // soleil
+      A(c,150,120,26,Math.PI*1.15,Math.PI*1.95); A(c,200,120,26,Math.PI*1.05,Math.PI*1.85);
+      A(c,290,205,22,Math.PI*1.15,Math.PI*1.95); A(c,332,205,22,Math.PI*1.05,Math.PI*1.85);
+    }}
+];
+
+function dessinerTraits(){
+  trc.setTransform(1,0,0,1,0,0);
+  trc.clearRect(0,0,W,H);
+  if(!coloriage){ traitsData=null; return; }
+  var s=Math.min(W/1000, H/700)*0.92;
+  trc.strokeStyle="#111"; trc.fillStyle="#111";
+  trc.lineJoin="round"; trc.lineCap="round";
+  trc.save();
+  trc.translate((W-1000*s)/2, (H-700*s)/2); trc.scale(s,s);
+  trc.lineWidth=9/s;
+  DESSINS[iDessin].d(trc);
+  trc.restore();
+  trc.lineWidth=9;                              // cadre : borne la zone de fond
+  trc.strokeRect(5,5,W-10,H-10);
+  traitsData=trc.getImageData(0,0,W,H);
+}
+
+/* --- remplissage par diffusion, arrete par les traits noirs --- */
+function calculerMasque(px,py){
+  if(!traitsData) return false;
+  var w=W, h=H, d=traitsData.data;
+  px=Math.round(px); py=Math.round(py);
+  if(px<1||py<1||px>=w-1||py>=h-1) return false;
+  if(d[(py*w+px)*4+3] >= 110) return false;     // on a pose la main sur un trait
+  var vus=new Uint8Array(w*h), pile=[px,py], x,y,i,x1,haut,bas,j;
+  while(pile.length){
+    y=pile.pop(); x=pile.pop();
+    if(vus[y*w+x]) continue;
+    x1=x;
+    while(x1>=0 && d[(y*w+x1)*4+3]<110 && !vus[y*w+x1]) x1--;
+    x1++;
+    haut=false; bas=false;
+    while(x1<w && d[(y*w+x1)*4+3]<110 && !vus[y*w+x1]){
+      j=y*w+x1; vus[j]=1;
+      if(y>0){
+        if(d[(j-w)*4+3]<110 && !vus[j-w]){ if(!haut){ pile.push(x1, y-1); haut=true; } }
+        else haut=false;
+      }
+      if(y<h-1){
+        if(d[(j+w)*4+3]<110 && !vus[j+w]){ if(!bas){ pile.push(x1, y+1); bas=true; } }
+        else bas=false;
+      }
+      x1++;
+    }
+  }
+  var im=mq.createImageData(w,h), o=im.data;
+  for(i=0;i<vus.length;i++) if(vus[i]){ o[i*4]=255; o[i*4+1]=255; o[i*4+2]=255; o[i*4+3]=255; }
+  mq.putImageData(im,0,0);
+  return true;
+}
+function remplirZone(c){
+  sq.setTransform(1,0,0,1,0,0);
+  sq.globalCompositeOperation="source-over";
+  sq.clearRect(0,0,W,H);
+  sq.drawImage(masque,0,0);
+  sq.globalCompositeOperation="source-in";
+  sq.fillStyle=rgba(c,.95); sq.fillRect(0,0,W,H);
+  sq.globalCompositeOperation="source-over";
+  ctx.drawImage(seau,0,0);
+}
+
+/* ================= couche peinture ================= */
+var cv = document.getElementById("peinture"), ctx = cv.getContext("2d");
+ctx.lineCap="round"; ctx.lineJoin="round";
+
+/* ================= palette ================= */
+var PALETTE = [
+  "#14120f","#f5f3ee","#e01b24","#ff6a00","#ffd400","#8cc63f","#00a651","#00b7e4",
+  "#0055d4","#3b2a8c","#8e44ad","#ff2d95","#ff9ec4","#7a4b2a","#9aa0a6","#c9cdd2"
+];
+var etat = {
+  couleur:{r:224,v:27,b:36}, hex:"#e01b24", outil:"bombe", taille:15, son:true,
+  fx:"chrome",                 // effet actif de l'outil FX
+  rouleau:"vertical", rouleauAng:0   // orientation figee du rouleau
+};
+
+function calibre(){ return Math.max(3, etat.taille*ECH); }
+function hex2rgb(h){
+  return { r:parseInt(h.substr(1,2),16), v:parseInt(h.substr(3,2),16), b:parseInt(h.substr(5,2),16) };
+}
+function rgba(c,a){ return "rgba("+c.r+","+c.v+","+c.b+","+a+")"; }
+
+function majPastilleCouleur(){
+  var p=document.querySelector("#btnCouleur .pastilleCouleur");
+  if(p) p.style.background=etat.hex;
+}
+/* Le panneau de droite montre soit les outils, soit la palette : la palette
+   prend la place des outils le temps de choisir, puis les outils reviennent.
+   Les deux vues ont volontairement la meme hauteur, le panneau ne bouge pas. */
+function fermerCouleurs(){
+  if(vueCouleurs.hidden) return;
+  vueCouleurs.hidden=true; vueOutils.hidden=false;
+  var b=document.getElementById("btnCouleur");
+  if(b) b.setAttribute("aria-checked","false");
+}
+function basculerCouleurs(){
+  var b=document.getElementById("btnCouleur");
+  if(!vueCouleurs.hidden){ fermerCouleurs(); return; }
+  vueOutils.hidden=true; vueCouleurs.hidden=false;
+  if(b) b.setAttribute("aria-checked","true");
+  placerPanneau(droiteEl, ECHD, window.innerHeight, "right top");
+}
+
+var grille = document.getElementById("couleurs");
+PALETTE.forEach(function(h){
+  var b=document.createElement("button");
+  b.className="col"; b.style.background=h; b.setAttribute("role","radio");
+  b.setAttribute("aria-checked", h===etat.hex ? "true":"false");
+  b.addEventListener("pointerdown", function(){
+    [].forEach.call(grille.children,function(e){e.setAttribute("aria-checked","false");});
+    b.setAttribute("aria-checked","true");
+    etat.hex=h; etat.couleur=hex2rgb(h); secouer();
+    majPastilleCouleur(); fermerCouleurs();
+  });
+  grille.appendChild(b);
+});
+
+/* ================= outils ================= */
+var OUTILS = [
+  { id:"bombe",   nom:"Bombe",    ico:'<path d="M9 21h7V9H9z"/><path d="M11 9V5h3v4"/><path d="M17 4h2M17 7h2M17 10h2"/>' },
+  { id:"fatcap",  nom:"Fat cap",  ico:'<path d="M8 21h9V10H8z"/><path d="M10 10V6h5v4"/><circle cx="19" cy="5" r="2"/>' },
+  { id:"marqueur",nom:"Marqueur", ico:'<path d="M4 20l3-1 11-11-2-2L5 17z"/><path d="M15 5l2-2 4 4-2 2z"/>' },
+  { id:"rouleau", nom:"Rouleau",  ico:'<rect x="3" y="4" width="13" height="6" rx="1.5"/><path d="M16 7h3v5h-6v9"/><line id="axeRouleau" x1="12" y1="15" x2="12" y2="23" stroke-width="3.4"/>', menu:"rouleau" },
+  { id:"fx",      nom:"FX",       ico:'<path d="M12 3l2.2 5.3L20 9l-4 4 1 6-5-2.8L7 19l1-6-4-4 5.8-.7z"/>', menu:"fx" },
+  { id:"seau",    nom:"Seau",     ico:'<path d="M5 8h14l-1.5 12h-11z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><path d="M5 12h14"/>' },
+  { id:"couleur", nom:"Couleur",  ouvre:"couleurs" },
+  { id:"gomme",   nom:"Nettoyer", ico:'<path d="M4 15l7-7 7 7-4 4H8z"/><path d="M9 20h11"/>' }
+];
+var bo = document.getElementById("outils");
+OUTILS.forEach(function(o){
+  var b=document.createElement("button");
+  b.className="btn";
+  if(o.ouvre==="couleurs"){                       // ouvre la palette, ne change pas d'outil
+    b.id="btnCouleur";
+    b.innerHTML='<i class="pastilleCouleur"></i><span>'+o.nom+'</span>';
+    b.addEventListener("pointerdown", function(ev){
+      ev.stopPropagation(); clac(); fermerMenu();
+      basculerCouleurs();
+    });
+    bo.appendChild(b); return;
+  }
+  b.setAttribute("role","radio");
+  b.setAttribute("aria-checked", o.id===etat.outil ? "true":"false");
+  b.innerHTML='<svg viewBox="0 0 24 24">'+o.ico+'</svg><span>'+o.nom+'</span>';
+  b.addEventListener("pointerdown", function(ev){
+    ev.stopPropagation();
+    var dejaActif = (etat.outil===o.id);
+    [].forEach.call(bo.children,function(e){
+      if(e.id!=="btnCouleur") e.setAttribute("aria-checked","false");
+    });
+    b.setAttribute("aria-checked","true"); etat.outil=o.id; clac();
+    fermerCouleurs();
+    if(o.menu){
+      if(dejaActif && !menu.hidden) fermerMenu();
+      else ouvrirMenu(b, o.menu);
+    } else fermerMenu();
+  });
+  bo.appendChild(b);
+});
+
+/* ================= sous-menus d'outil ================= */
+var menu=document.getElementById("menu"), menuTitre=document.getElementById("menuTitre"),
+    menuBtns=document.getElementById("menuBtns"), menuFleche=document.getElementById("menuFleche");
+
+var MENUS = {
+  mur: { titre:"Le mur", items:FONDS,
+    actif:function(it){ return !coloriage && FONDS[iFond].id===it.id; },
+    set:function(it,n){ coloriage=false; iDessin=-1; iFond=n; dessinerFond(); dessinerTraits(); majSupport(); } },
+  coloriage: { titre:"Coloriage", items:DESSINS,
+    actif:function(it){ return coloriage && DESSINS[iDessin] && DESSINS[iDessin].id===it.id; },
+    set:function(it,n){ coloriage=true; iDessin=n; dessinerFond(); dessinerTraits(); majSupport(); } },
+  fx: { titre:"Effet",
+    actif:function(it){ return etat.fx===it.id; },
+    set:function(it){ etat.fx=it.id; },
+    items:[
+    { id:"chrome",     nom:"Chrome",  ico:'<path d="M12 3l2.2 5.3L20 9l-4 4 1 6-5-2.8L7 19l1-6-4-4 5.8-.7z"/>' },
+    { id:"neon",       nom:"Néon",    ico:'<circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>' },
+    { id:"paillettes", nom:"Paillettes", ico:'<path d="M7 3l1.3 3.2L11.5 7.5 8.3 8.8 7 12 5.7 8.8 2.5 7.5l3.2-1.3z"/><path d="M16 11l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z"/><path d="M12.5 19.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/>' },
+    { id:"splash",     nom:"Éclabous.", ico:'<circle cx="11" cy="12" r="4.5"/><circle cx="18.5" cy="7" r="1.8"/><circle cx="19" cy="16" r="1.2"/><circle cx="5" cy="6" r="1.4"/><circle cx="4.5" cy="18" r="2"/>' },
+    { id:"arc",        nom:"Arc-en-ciel", ico:'<path d="M3 19a9 9 0 0 1 18 0"/><path d="M7 19a5 5 0 0 1 10 0"/><path d="M10.5 19a1.5 1.5 0 0 1 3 0"/>' },
+    { id:"feu",        nom:"Feu",     ico:'<path d="M12 22c4 0 6.5-2.7 6.5-6 0-4.5-4.5-6-4-11-3 1.5-5 4.5-5 7 0 1.5.5 2.5 1 3 0-2 .5-3 1.5-4-1 5-6.5 4.5-6.5 9 0 3.3 2.5 6 6.5 6z"/>' },
+    { id:"pixel",      nom:"Pixel",   ico:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>' },
+    { id:"contour",    nom:"Contour", ico:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/>' },
+    { id:"bulles",     nom:"Bulles",  ico:'<circle cx="9" cy="10" r="5.5"/><circle cx="17.5" cy="16" r="3.5"/><circle cx="17" cy="6" r="2"/>' },
+    { id:"eclair",     nom:"Éclairs", ico:'<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>' }
+  ]},
+  rouleau: { titre:"Orientation",
+    actif:function(it){ return etat.rouleau===it.id; },
+    set:function(it){ etat.rouleau=it.id; etat.rouleauAng=it.ang; majIconeRouleau(); },
+    items:[
+    { id:"vertical",   nom:"Vertical",   ang:0,             ico:'<line x1="12" y1="3" x2="12" y2="21" stroke-width="4"/>' },
+    { id:"horizontal", nom:"Horizontal", ang:Math.PI/2,     ico:'<line x1="3" y1="12" x2="21" y2="12" stroke-width="4"/>' },
+    { id:"droite",     nom:"45° /",      ang:Math.PI/4,     ico:'<line x1="5" y1="19" x2="19" y2="5" stroke-width="4"/>' },
+    { id:"gauche",     nom:"45° \\",     ang:-Math.PI/4,    ico:'<line x1="5" y1="5" x2="19" y2="19" stroke-width="4"/>' }
+  ]}
+};
+
+function majIconeRouleau(){
+  var axe=document.getElementById("axeRouleau"); if(!axe) return;
+  var deg = etat.rouleauAng*180/Math.PI;
+  axe.setAttribute("transform","rotate("+deg+" 12 19)");
+}
+function fermerMenu(){ menu.hidden=true; }
+function ouvrirMenu(btn, type){
+  var conf=MENUS[type]; if(!conf) return;
+  menuTitre.textContent=conf.titre;
+  menuBtns.innerHTML="";
+  menuBtns.style.gridTemplateColumns="repeat("+Math.min(5,conf.items.length)+",124px)";
+  conf.items.forEach(function(it,n){
+    var b=document.createElement("button");
+    b.className="btn"; b.setAttribute("role","radio");
+    b.setAttribute("aria-checked", conf.actif(it)?"true":"false");
+    b.innerHTML='<svg viewBox="0 0 24 24">'+it.ico+'</svg><span>'+it.nom+'</span>';
+    b.addEventListener("pointerdown", function(ev){
+      ev.stopPropagation();
+      conf.set(it,n);
+      clac(); fermerMenu();
+      if(!conf.muet) toast(conf.titre+" : "+it.nom);
+    });
+    menuBtns.appendChild(b);
+  });
+  menu.hidden=false;
+  menu.style.transform="scale("+ECHD+")";
+  var rb=btn.getBoundingClientRect();
+  var hm=menu.offsetHeight*ECHD, vh=window.innerHeight;
+  menu.style.right=(window.innerWidth-rb.left+16)+"px";
+  var t=rb.top + rb.height/2 - hm/2;
+  t=Math.max(14, Math.min(vh-hm-14, t));
+  menu.style.top=t+"px";
+  menuFleche.style.top=((rb.top+rb.height/2-t)/ECHD - 13)+"px";
+}
+
+/* ================= calibres ================= */
+var TAILLES = [ {n:"S",v:7}, {n:"M",v:15}, {n:"L",v:31}, {n:"XL",v:55} ];
+var bt = document.getElementById("tailles");
+TAILLES.forEach(function(t){
+  var d = Math.min(31, 9 + t.v*0.42);   // apercu : etagement visuel des calibres
+  var b=document.createElement("button");
+  b.className="btn"; b.setAttribute("role","radio");
+  b.setAttribute("aria-checked", t.v===etat.taille ? "true":"false");
+  b.innerHTML='<i class="pastille" style="width:'+d+'px;height:'+d+'px"></i><span>'+t.n+'</span>';
+  b.addEventListener("pointerdown", function(){
+    [].forEach.call(bt.children,function(e){e.setAttribute("aria-checked","false");});
+    b.setAttribute("aria-checked","true"); etat.taille=t.v; clac();
+  });
+  bt.appendChild(b);
+});
+
+/* ================= son ================= */
+var AC=null, bruit=null, gainSpray=null, passeHaut=null, passeBas=null, pointe=null;
+var souffleLance=false, gabarit=null;
+function audio(){
+  if(AC){
+    if(AC.state!=="running"){ try{ AC.resume().then(lancerSouffle).catch(function(){}); }catch(e){} }
+    else if(!souffleLance) lancerSouffle();
+    return AC;
+  }
+  var C = window.AudioContext||window.webkitAudioContext;
+  if(!C) return null;
+  try{
+  AC = new C();
+  // souffle d'aerosol : bruit large bande, borne en bas et en haut,
+  // plus une bosse mediane. Un bandpass etroit ne s'entend pas sur
+  // des haut-parleurs de videoprojecteur.
+  var len = AC.sampleRate*2, buf = AC.createBuffer(1,len,AC.sampleRate), d=buf.getChannelData(0);
+  for(var i=0;i<len;i++) d[i]=Math.random()*2-1;
+  gabarit = buf;
+  passeHaut = AC.createBiquadFilter(); passeHaut.type="highpass"; passeHaut.frequency.value=700;
+  passeBas  = AC.createBiquadFilter(); passeBas.type="lowpass";  passeBas.frequency.value=9000;
+  pointe    = AC.createBiquadFilter(); pointe.type="peaking";
+  pointe.frequency.value=3600; pointe.Q.value=1.1; pointe.gain.value=9;
+  gainSpray = AC.createGain(); gainSpray.gain.value=0;
+  passeHaut.connect(passeBas); passeBas.connect(pointe);
+  pointe.connect(gainSpray); gainSpray.connect(AC.destination);
+  }catch(err){ diag.err++; AC=null; return null; }
+  lancerSouffle();
+  return AC;
+}
+/* Une source audio ne demarre qu'une fois, et si on la lance pendant que le
+   contexte est en veille elle joue dans le vide : le souffle etait alors
+   definitivement muet. On ne la lance donc qu'une fois le contexte actif,
+   et on reessaie a chaque contact tant que ce n'est pas fait. */
+function lancerSouffle(){
+  if(souffleLance || !AC || !gabarit) return;
+  if(AC.state!=="running"){
+    try{ AC.resume().then(lancerSouffle).catch(function(){}); }catch(e){}
+    return;
+  }
+  try{
+    bruit = AC.createBufferSource();
+    bruit.buffer = gabarit; bruit.loop = true;
+    bruit.connect(passeHaut);
+    bruit.start();
+    souffleLance = true;
+  }catch(err){ diag.err++; }
+}
+/* Toute la sonorisation est isolee : une erreur audio ne doit jamais
+   interrompre la boucle de dessin. Un parametre non fini (NaN) passe a
+   l'API WebAudio leve une exception, et cette exception remontait dans le
+   trace en cours. Le compteur sert au diagnostic (touche D). */
+/* Chrome n'autorise le son qu'apres une "activation utilisateur". A la souris,
+   l'appui suffit. Au toucher, l'autorisation n'est accordee qu'au RELACHEMENT
+   (pointerup / touchend / click) : un doigt pose qui trace n'a jamais reveille
+   le contexte, d'ou un trait sans souffle sur l'ecran tactile alors que tout
+   marchait a la souris. On amorce donc sur tous ces evenements, en capture,
+   pour que le premier relachement suffise, ou qu'il tombe. */
+function amorcerAudio(){
+  var a=audio();
+  if(a && a.state!=="running"){ try{ a.resume().then(lancerSouffle).catch(function(){}); }catch(e){} }
+  else lancerSouffle();
+}
+["pointerup","touchend","click","keydown"].forEach(function(t){
+  window.addEventListener(t, amorcerAudio, true);
+});
+
+function spraySon(on,intensite){
+  try{
+    var a=audio(); if(!a) return;
+    if(!etat.son){ if(gainSpray) gainSpray.gain.setTargetAtTime(0,a.currentTime,.02); return; }
+    var i = Number(intensite);
+    if(!isFinite(i) || i<0) i=0; else if(i>1) i=1;
+    if(!souffleLance) lancerSouffle();
+    var g = on ? Math.min(.42, .20 + i*.22) : 0;
+    gainSpray.gain.setTargetAtTime(g, a.currentTime, on?.03:.07);
+    passeHaut.frequency.setTargetAtTime(500 + i*900, a.currentTime, .08);
+  }catch(err){ diag.err++; }
+}
+function clac(){
+  try{
+  if(!etat.son) return; var a=audio(); if(!a) return;
+  if(a.state==="suspended") a.resume();
+  var o=a.createOscillator(), g=a.createGain();
+  o.type="square"; o.frequency.value=1400;
+  g.gain.setValueAtTime(.05,a.currentTime); g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.05);
+  o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+.06);
+  }catch(err){ diag.err++; }
+}
+function secouer(){
+  try{
+  if(!etat.son) return; var a=audio(); if(!a) return;
+  if(a.state==="suspended") a.resume();
+  for(var i=0;i<4;i++){
+    (function(k){
+      var o=a.createOscillator(), g=a.createGain();
+      o.type="triangle"; o.frequency.value=alea(380,760);
+      var t=a.currentTime+k*.075;
+      g.gain.setValueAtTime(.05,t); g.gain.exponentialRampToValueAtTime(.001,t+.06);
+      o.connect(g); g.connect(a.destination); o.start(t); o.stop(t+.07);
+    })(i);
+  }
+  }catch(err){ diag.err++; }
+}
+
+/* ================= empreintes ================= */
+function bombe(x,y,r,c,densite){
+  var g=ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0, rgba(c,0.14*densite));
+  g.addColorStop(.55, rgba(c,0.06*densite));
+  g.addColorStop(1, rgba(c,0));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill();
+  var n=Math.max(5, r*0.45), i,a,d,s;
+  for(i=0;i<n;i++){
+    a=Math.random()*TAU; d=r*Math.pow(Math.random(),.55); s=alea(.9,2.4);
+    ctx.fillStyle=rgba(c, alea(.04,.20)*densite);
+    ctx.fillRect(x+Math.cos(a)*d, y+Math.sin(a)*d, s, s);
+  }
+  // quelques grains satellites (overspray)
+  for(i=0;i<n*.25;i++){
+    a=Math.random()*TAU; d=r*alea(1,1.7);
+    ctx.fillStyle=rgba(c, alea(.02,.07));
+    ctx.fillRect(x+Math.cos(a)*d, y+Math.sin(a)*d, alea(.8,1.8), alea(.8,1.8));
+  }
+}
+function marqueur(x,y,r,c,k){
+  ctx.fillStyle=rgba(c, .92*(k===undefined?1:Math.min(1,k)));
+  ctx.beginPath(); ctx.arc(x,y,r*.5,0,TAU); ctx.fill();
+}
+function rouleau(x,y,r,c,ang){
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+  ctx.fillStyle=rgba(c,.55); ctx.fillRect(-r*.18,-r,r*.36,r*2);
+  for(var i=0;i<8;i++){
+    ctx.fillStyle=rgba(c, alea(.05,.3));
+    ctx.fillRect(-r*.22, alea(-r,r), r*.44, alea(1,4));
+  }
+  ctx.restore();
+}
+function hsl2rgb(h,s,l){
+  var a=s*Math.min(l,1-l);
+  function f(n){ var k=(n+h/30)%12; return Math.round(255*(l - a*Math.max(-1,Math.min(k-3,Math.min(9-k,1))))); }
+  return { r:f(0), v:f(8), b:f(4) };
+}
+function fxChrome(x,y,r,c){
+  var g=ctx.createRadialGradient(x-r*.3,y-r*.3,0,x,y,r*.7);
+  g.addColorStop(0,"rgba(255,255,255,.30)");
+  g.addColorStop(.5, rgba(c,.22));
+  g.addColorStop(1, rgba(c,.05));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*.7,0,TAU); ctx.fill();
+  for(var i=0;i<3;i++){
+    var a=Math.random()*TAU, d=r*Math.pow(Math.random(),.5);
+    ctx.fillStyle= Math.random()<.5 ? "rgba(255,255,255,"+alea(.2,.65).toFixed(2)+")" : rgba(c,alea(.2,.5));
+    ctx.fillRect(x+Math.cos(a)*d, y+Math.sin(a)*d, alea(1,3), alea(1,3));
+  }
+}
+function fxNeon(x,y,r,c){
+  var g=ctx.createRadialGradient(x,y,0,x,y,r*1.5);
+  g.addColorStop(0, rgba(c,.30));
+  g.addColorStop(.45, rgba(c,.13));
+  g.addColorStop(1, rgba(c,0));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*1.5,0,TAU); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.34)";
+  ctx.beginPath(); ctx.arc(x,y,r*.22,0,TAU); ctx.fill();
+}
+function fxPaillettes(x,y,r,c){
+  var g=ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0, rgba(c,.05)); g.addColorStop(1, rgba(c,0));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill();
+  for(var i=0;i<5;i++){
+    var a=Math.random()*TAU, d=r*Math.pow(Math.random(),.5), s=alea(1.5,4.5);
+    var px=x+Math.cos(a)*d, py=y+Math.sin(a)*d;
+    var e=Math.random();
+    ctx.fillStyle = e<.34 ? "rgba(255,255,255,"+alea(.4,.9).toFixed(2)+")"
+                  : e<.67 ? rgba(c, alea(.35,.8))
+                          : "rgba(255,214,90,"+alea(.3,.75).toFixed(2)+")";
+    ctx.save(); ctx.translate(px,py); ctx.rotate(Math.PI/4);
+    ctx.fillRect(-s/2,-s/2,s,s); ctx.restore();
+  }
+}
+function fxSplash(x,y,r,c){
+  ctx.fillStyle=rgba(c,.8);
+  ctx.beginPath(); ctx.arc(x,y,r*.22,0,TAU); ctx.fill();
+  var n=1+(Math.random()*3|0);
+  for(var i=0;i<n;i++){
+    var a=Math.random()*TAU, d=r*alea(.35,1.7), s=alea(r*.05,r*.26);
+    var px=x+Math.cos(a)*d, py=y+Math.sin(a)*d;
+    ctx.fillStyle=rgba(c, alea(.45,.9));
+    ctx.save(); ctx.translate(px,py); ctx.rotate(a);
+    ctx.beginPath(); ctx.ellipse(0,0,s*alea(1,1.9),s,0,0,TAU); ctx.fill();
+    ctx.restore();
+  }
+}
+function fxArc(x,y,r){
+  var c=hsl2rgb((performance.now()*0.13)%360, .95, .55);
+  bombe(x,y,r,c,.9);
+}
+function fxFeu(x,y,r){
+  var g=ctx.createRadialGradient(x,y-r*.15,0,x,y,r);
+  g.addColorStop(0,"rgba(255,244,180,.34)");
+  g.addColorStop(.3,"rgba(255,176,40,.24)");
+  g.addColorStop(.65,"rgba(226,72,14,.15)");
+  g.addColorStop(1,"rgba(150,20,0,0)");
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill();
+  for(var i=0;i<3;i++){                       // braises qui montent
+    var a=Math.random()*TAU, d=r*Math.pow(Math.random(),.6);
+    ctx.fillStyle="rgba(255,"+(140+Math.random()*110|0)+",40,"+alea(.25,.7).toFixed(2)+")";
+    ctx.fillRect(x+Math.cos(a)*d, y+Math.sin(a)*d-alea(0,r*.5), alea(1.5,3.5), alea(1.5,4.5));
+  }
+}
+function fxPixel(x,y,r,c){
+  var p=Math.max(7, r*0.36);
+  var cx=Math.round(x/p)*p, cy=Math.round(y/p)*p;
+  ctx.fillStyle=rgba(c,.9);
+  ctx.fillRect(cx-p/2, cy-p/2, p-1, p-1);
+  if(Math.random()<.35){                      // pixel voisin plus pale
+    var dx=(Math.random()<.5?-1:1)*p, dy=(Math.random()<.5?-1:1)*p;
+    ctx.fillStyle=rgba(c,alea(.2,.5));
+    ctx.fillRect(cx+dx-p/2, cy+dy-p/2, p-1, p-1);
+  }
+}
+function fxContour(x,y,r,c){
+  ctx.fillStyle="rgba(12,10,8,.95)";          // le cerne noir
+  ctx.beginPath(); ctx.arc(x,y,r*.62,0,TAU); ctx.fill();
+  ctx.fillStyle=rgba(c,.97);                  // le remplissage
+  ctx.beginPath(); ctx.arc(x,y,r*.42,0,TAU); ctx.fill();
+}
+function fxBulles(x,y,r,c){
+  var n=1+(Math.random()*2|0);
+  for(var i=0;i<n;i++){
+    var a=Math.random()*TAU, d=r*alea(0,.9), rb=r*alea(.12,.42);
+    var px=x+Math.cos(a)*d, py=y+Math.sin(a)*d;
+    ctx.strokeStyle=rgba(c, alea(.3,.75)); ctx.lineWidth=Math.max(1.2, r*.05);
+    ctx.beginPath(); ctx.arc(px,py,rb,0,TAU); ctx.stroke();
+    ctx.fillStyle="rgba(255,255,255,"+alea(.15,.5).toFixed(2)+")";
+    ctx.beginPath(); ctx.arc(px-rb*.35, py-rb*.35, Math.max(.8,rb*.16), 0, TAU); ctx.fill();
+  }
+}
+function fxEclair(x,y,r,c){
+  var g=ctx.createRadialGradient(x,y,0,x,y,r*.8);
+  g.addColorStop(0,rgba(c,.12)); g.addColorStop(1,rgba(c,0));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r*.8,0,TAU); ctx.fill();
+  if(Math.random()>.45) return;
+  var a=Math.random()*TAU, px=x, py=y;
+  ctx.strokeStyle=Math.random()<.4 ? "rgba(255,255,255,.85)" : rgba(c,.85);
+  ctx.lineWidth=Math.max(1.4, r*.07);
+  ctx.beginPath(); ctx.moveTo(px,py);
+  for(var i=0;i<3;i++){
+    a += alea(-1.1,1.1);
+    px += Math.cos(a)*r*alea(.25,.5); py += Math.sin(a)*r*alea(.25,.5);
+    ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+}
+function effet(x,y,r,c){
+  switch(etat.fx){
+    case "neon":       fxNeon(x,y,r,c); break;
+    case "paillettes": fxPaillettes(x,y,r,c); break;
+    case "splash":     fxSplash(x,y,r,c); break;
+    case "arc":        fxArc(x,y,r); break;
+    case "feu":        fxFeu(x,y,r); break;
+    case "pixel":      fxPixel(x,y,r,c); break;
+    case "contour":    fxContour(x,y,r,c); break;
+    case "bulles":     fxBulles(x,y,r,c); break;
+    case "eclair":     fxEclair(x,y,r,c); break;
+    default:           fxChrome(x,y,r,c);
+  }
+}
+function gomme(x,y,r,k){
+  var a=(k===undefined?1:Math.min(1,k));
+  ctx.save(); ctx.globalCompositeOperation="destination-out";
+  var g=ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,"rgba(0,0,0,"+(.55*a)+")"); g.addColorStop(.7,"rgba(0,0,0,"+(.25*a)+")"); g.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+/* ================= coulures + depot stationnaire ================= */
+var coulures=[], boucle=null, tPrec=0;
+function reveiller(){ if(!boucle){ tPrec=0; boucle=requestAnimationFrame(pulse); } }
+function ajouterCoulure(x,y,r,c){
+  if(coloriage || coulures.length>44) return;
+  coulures.push({ x:x+alea(-r*.28,r*.28), y:y+r*.35, w:alea(r*.10,r*.20), v:alea(.2,.7), c:c });
+  reveiller();
+}
+function pulse(ts){
+  var dt = tPrec ? Math.min(64, ts-tPrec) : 16; tPrec = ts;
+  var i,d,id,t,imm,mult,seuil;
+
+  // 1. la peinture qui coule
+  for(i=coulures.length-1;i>=0;i--){
+    d=coulures[i];
+    d.v += 0.055; d.y += d.v; d.w *= 0.9955;
+    ctx.fillStyle=rgba(d.c,.82);
+    ctx.beginPath(); ctx.arc(d.x, d.y, Math.max(d.w,.6), 0, TAU); ctx.fill();
+    if(d.w<1.1 || d.y>H+20 || d.v>7){
+      if(d.y<H){
+        ctx.fillStyle=rgba(d.c,.85);
+        ctx.beginPath(); ctx.arc(d.x,d.y,d.w*1.9,0,TAU); ctx.fill();
+      }
+      coulures.splice(i,1);
+    }
+  }
+
+  // 2. la bombe qui reste au meme endroit : la tache s'elargit et se charge
+  for(id in traces){
+    t=traces[id];
+    if(etat.outil==="rouleau") continue;
+    imm = ts - t.tMove;
+    if(imm < 55) continue;
+    t.stat += dt;
+    mult = 1 + Math.min(1.35, t.stat/1000);
+    poser(t, t.x, t.y, 0, mult, dt/16*0.5);
+    if(etat.outil!=="gomme" && etat.outil!=="fx"){
+      t.jus += dt * (etat.outil==="fatcap" ? 2.4 : 1.4) * (0.6 + calibre()/70);
+      seuil = 900;
+      if(t.jus>seuil){
+        ajouterCoulure(t.x, t.y + calibre()*mult*0.45, calibre()*mult, t.c);
+        t.jus = 380;
+      }
+    }
+  }
+
+  boucle = (coulures.length || Object.keys(traces).length) ? requestAnimationFrame(pulse) : null;
+}
+
+/* ================= historique ================= */
+var histo=[], MAXH=10;
+function memoriser(){
+  var c=document.createElement("canvas"); c.width=W; c.height=H;
+  c.getContext("2d").drawImage(cv,0,0);
+  histo.push(c); if(histo.length>MAXH) histo.shift();
+}
+function annuler(){
+  var c=histo.pop();
+  if(!c){ toast("Rien à annuler"); return; }
+  coulures.length=0;
+  ctx.clearRect(0,0,W,H); ctx.drawImage(c,0,0);
+}
+
+/* ================= mesure (touche D) =================
+   Compte ce qui arrive vraiment du capteur ou de la souris. Un trait pale
+   vient soit de trop peu d'evenements, soit d'images perdues : ces deux
+   chiffres separent les deux causes en quelques secondes. */
+var jauge=document.createElement("div");
+jauge.hidden=true;
+jauge.style.cssText="position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:40;"+
+  "background:rgba(10,9,8,.92);border:2px solid var(--acid);color:#f2f0e6;padding:9px 16px;"+
+  "border-radius:7px;font:700 15px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.04em;pointer-events:none";
+document.getElementById("stage").appendChild(jauge);
+function mesurer(ts){
+  if(diag.actif){
+    diag.img++;
+    if(!diag.t0) diag.t0=ts;
+    if(ts-diag.t0>=1000){
+      jauge.textContent = diag.img+" img/s · "+diag.ev+" pointe/s · "+
+                          diag.emp+" depots/s · audio "+(AC?AC.state:"absent")+
+                          (souffleLance?"/souffle ok":"/souffle non lance")+
+                          " · "+diag.err+" err.";
+      diag.ev=0; diag.emp=0; diag.img=0; diag.err=0; diag.t0=ts;
+    }
+  }
+  requestAnimationFrame(mesurer);
+}
+requestAnimationFrame(mesurer);
+
+/* ================= trace ================= */
+var traces={};
+function pos(e){
+  var r=cv.getBoundingClientRect();
+  return { x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height) };
+}
+var zoneActive=false;
+function poser(t,x,y,vitesse,mult,dens){
+  if(!zoneActive) return poserBrut(t,x,y,vitesse,mult,dens);
+  // hors mode confine on peint directement ; ici on passe par un tampon
+  // de la taille du pinceau, decoupe par le masque de la zone touchee.
+  var rr=Math.ceil(calibre()*(mult||1)*2.8)+4, d2=rr*2;
+  if(tampon.width<d2 || tampon.height<d2){ tampon.width=d2; tampon.height=d2; }
+  tp.setTransform(1,0,0,1,0,0);
+  tp.globalCompositeOperation="source-over";
+  tp.clearRect(0,0,tampon.width,tampon.height);
+  var vrai=ctx;
+  ctx=tp; ctx.setTransform(1,0,0,1, rr-x, rr-y);
+  poserBrut(t,x,y,vitesse,mult,dens);
+  ctx=vrai;
+  tp.setTransform(1,0,0,1,0,0);
+  tp.globalCompositeOperation="destination-in";
+  tp.drawImage(masque, x-rr, y-rr, d2, d2, 0, 0, d2, d2);
+  tp.globalCompositeOperation="source-over";
+  ctx.drawImage(tampon, 0,0,d2,d2, x-rr, y-rr, d2, d2);
+}
+function poserBrut(t,x,y,vitesse,mult,dens){
+  var r=calibre()*(mult||1), c=t.c, k=(dens===undefined?1:dens);
+  switch(etat.outil){
+    case "bombe":   bombe(x,y,r,c, k*Math.max(.35, 1-vitesse/34)); break;
+    case "fatcap":  bombe(x,y,r*1.85,c, k*Math.max(.4, 1.25-vitesse/30)); break;
+    case "marqueur":marqueur(x,y,r,c,k); break;
+    case "rouleau": rouleau(x,y,r*1.5,c,etat.rouleauAng); break;
+    case "fx":      effet(x,y,r*1.3,c); break;
+    case "gomme":   gomme(x,y,r*1.5,k); break;
+  }
+}
+function debut(e){
+  if(e.clientY===undefined) return;
+  var p=pos(e); if(p.y<0||p.y>H) return;
+  fermerMenu(); fermerCouleurs(); audio();
+  cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
+  memoriser();
+  zoneActive=false;
+  if(coloriage && etat.outil!=="gomme"){
+    zoneActive = calculerMasque(p.x, p.y);
+    if(!zoneActive) return;                     // trait noir : rien ne s'y depose
+    if(etat.outil==="seau"){
+      remplirZone(hex2rgb(etat.hex)); clac(); return;
+    }
+  } else if(etat.outil==="seau"){
+    toast("Le seau ne marche qu'en coloriage"); return;
+  }
+  traces[e.pointerId]={ x:p.x, y:p.y, c:hex2rgb(etat.hex), ang:0, jus:0, stat:0, tMove:performance.now() };
+  poser(traces[e.pointerId], p.x, p.y, 0, 1, 1);
+  spraySon(true,0);
+  reveiller();
+}
+/* Depose la peinture du dernier point jusqu'a p, en comblant l'intervalle.
+   Utilisee par pointermove, avec interpolation entre deux positions. */
+function tracerVers(t,p){
+  var dx=p.x-t.x, dy=p.y-t.y, dist=Math.hypot(dx,dy);
+  var pas=Math.max(1.2, calibre()*0.11), n=Math.ceil(dist/pas), i;
+  if(dist>0.4) t.ang=Math.atan2(dy,dx)+Math.PI/2;
+  for(i=1;i<=n;i++) poser(t, t.x+dx*i/n, t.y+dy*i/n, dist/n*3, 1, 1);
+  diag.emp+=n;
+  // la main bouge : la charge de peinture et l'elargissement retombent
+  if(dist > calibre()*0.18){
+    t.tMove = performance.now();
+    t.stat  = Math.max(0, t.stat - dist*14);
+    t.jus   = Math.max(0, t.jus  - dist*9);
+  }
+  t.x=p.x; t.y=p.y;
+  return dist;
+}
+function bouger(e){
+  var t=traces[e.pointerId]; if(!t) return;
+  var pts = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
+  var dist=0;
+  diag.ev+=pts.length;
+  for(var k=0;k<pts.length;k++) dist=tracerVers(t, pos(pts[k]));
+  spraySon(true, Math.min(1, dist/26));   // une fois par evenement, pas par point
+}
+function fin(e){
+  delete traces[e.pointerId];
+  if(!Object.keys(traces).length){ zoneActive=false; spraySon(false,0); }
+  if(!souffleLance) amorcerAudio();
+}
+
+cv.addEventListener("pointerdown", debut);
+cv.addEventListener("pointermove", bouger);
+cv.addEventListener("pointerup", fin);
+cv.addEventListener("pointercancel", fin);
+cv.addEventListener("pointerleave", fin);
+cv.addEventListener("contextmenu", function(e){ e.preventDefault(); });
+
+/* ================= actions ================= */
+var toastEl=document.getElementById("toast"), toastT=null;
+function toast(m){
+  toastEl.textContent=m; toastEl.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(function(){ toastEl.classList.remove("on"); },1600);
+}
+document.getElementById("annuler").addEventListener("pointerdown", function(){ annuler(); clac(); });
+
+/* --- ENREGISTREMENT ---------------------------------------------------
+   L'image part sur Firebase Storage (projet lumiia-live, prefixe graffwall/),
+   et sa fiche dans la RTDB /graffwall/index/<jour>/<id>. L'URL Storage est
+   publique : elle s'ouvre telle quelle dans n'importe quel navigateur, donc
+   elle se partage directement par mail ou WhatsApp sans hebergement.
+   Si l'envoi echoue, on retombe sur un telechargement local et on AFFICHE
+   le code d'erreur (une panne silencieuse est le pire des cas). --------- */
+var BUCKET = "lumiia-live.firebasestorage.app";
+var RTDB   = "https://lumiia-live-default-rtdb.europe-west1.firebasedatabase.app";
+
+function horodatage(){
+  var d=new Date(), p=function(v){ return (v<10?"0":"")+v; };
+  return { jour: d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()),
+           heure: p(d.getHours())+"h"+p(d.getMinutes())+"m"+p(d.getSeconds()),
+           ts: d.getTime() };
+}
+function telecharger(url, nom){
+  var a=document.createElement("a");
+  a.href=url; a.download=nom; a.style.display="none";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ a.remove(); if(url.indexOf("blob:")===0) URL.revokeObjectURL(url); }, 4000);
+}
+function composer(){                          // les couches dessinees, sans les panneaux
+  var c=document.createElement("canvas"); c.width=W; c.height=H;
+  var g=c.getContext("2d");
+  g.drawImage(mur,0,0); g.drawImage(cv,0,0);
+  if(coloriage) g.drawImage(tr,0,0);
+  return c;
+}
+function reduire(source, largeur, qualite){
+  var r=largeur/source.width;
+  var c=document.createElement("canvas");
+  c.width=Math.round(source.width*r); c.height=Math.round(source.height*r);
+  var g=c.getContext("2d");
+  g.imageSmoothingQuality="high";
+  g.drawImage(source,0,0,c.width,c.height);
+  return new Promise(function(res){ c.toBlob(res,"image/jpeg",qualite); });
+}
+function envoyer(chemin, blob){
+  var u="https://firebasestorage.googleapis.com/v0/b/"+BUCKET+
+        "/o?uploadType=media&name="+encodeURIComponent(chemin);
+  return fetch(u,{ method:"POST", headers:{"Content-Type":"image/jpeg"}, body:blob })
+    .then(function(r){
+      if(!r.ok) return r.text().then(function(t){ throw new Error("Storage "+r.status+" "+t.slice(0,90)); });
+      return r.json();
+    })
+    .then(function(m){
+      var jeton = m.downloadTokens ? "&token="+m.downloadTokens : "";
+      return "https://firebasestorage.googleapis.com/v0/b/"+BUCKET+"/o/"+
+             encodeURIComponent(chemin)+"?alt=media"+jeton;
+    });
+}
+var envoiEnCours=false;
+function enregistrer(){
+  if(envoiEnCours) return;
+  fermerMenu();
+  var h=horodatage(), id=h.jour.replace(/-/g,"")+"_"+h.heure.replace(/[hm]/g,"")+"_"+
+        Math.random().toString(36).slice(2,6);
+  var source=composer(), grand=null, petit=null;
+  envoiEnCours=true; btnGarder.setAttribute("aria-checked","true");
+  toast("Envoi en cours…");
+
+  reduire(source, Math.min(1920, source.width), .82).then(function(b){
+    grand=b; return reduire(source, 480, .62);
+  }).then(function(b){
+    petit=b;
+    return Promise.all([ envoyer("graffwall/"+h.jour+"/"+id+".jpg", grand),
+                         envoyer("graffwall/"+h.jour+"/"+id+"_v.jpg", petit) ]);
+  }).then(function(urls){
+    var fiche={ ts:h.ts, heure:h.heure, url:urls[0], vig:urls[1],
+                support: coloriage ? ("Coloriage "+(DESSINS[iDessin]?DESSINS[iDessin].nom:"")) : FONDS[iFond].nom,
+                mode: coloriage?"coloriage":"mur", w:W, h:H,
+                joueur:null, session:null };      // places reservees pour la connexion des joueurs
+    return fetch(RTDB+"/graffwall/index/"+h.jour+"/"+id+".json",
+                 { method:"PUT", body:JSON.stringify(fiche) })
+      .then(function(r){
+        if(!r.ok) return r.text().then(function(t){ throw new Error("RTDB "+r.status+" "+t.slice(0,90)); });
+        toast("Enregistré en ligne");
+      });
+  }).catch(function(err){
+    var m=String(err.message||err);
+    toast("Hors ligne — gardé sur le poste");
+    console.error("[graffwall] envoi impossible :", m);
+    source.toBlob(function(b){
+      if(b) telecharger(URL.createObjectURL(b), "graff_"+h.jour+"_"+h.heure+".png");
+    },"image/png");
+    setTimeout(function(){ toast(m.slice(0,60)); }, 1800);
+  }).then(function(){
+    envoiEnCours=false; btnGarder.setAttribute("aria-checked","false");
+  });
+}
+var btnGarder=document.getElementById("garder");
+btnGarder.addEventListener("pointerdown", function(ev){
+  ev.stopPropagation(); clac(); enregistrer();
+});
+
+/* Effacement par appui long de 3 s. Le temps s'accumule tant que le doigt
+   est pose ; s'il decroche, on garde la progression pendant 450 ms avant de
+   tout remettre a zero — un contact qui saute ne fait plus repartir de zero. */
+var effacer=document.getElementById("effacer"), jauge=document.getElementById("jauge");
+var DUREE_EFF=3000, effPose=false, effCumul=0, effT0=0, effBoucle=null, effLache=null;
+
+function effTic(){
+  var now=performance.now();
+  if(effPose){ effCumul += now-effT0; effT0=now; }
+  var p=Math.min(1, effCumul/DUREE_EFF);
+  jauge.style.width=(p*100)+"%";
+  if(p>=1){
+    effRaz();
+    memoriser(); coulures.length=0; ctx.clearRect(0,0,W,H);
+    toast(coloriage?"Dessin remis à zéro":"Mur nettoyé"); clac();
+  }
+}
+function effRaz(){
+  clearInterval(effBoucle); clearTimeout(effLache);
+  effBoucle=null; effPose=false; effCumul=0; jauge.style.width="0";
+}
+effacer.addEventListener("pointerdown", function(ev){
+  ev.stopPropagation(); fermerMenu(); fermerCouleurs();
+  clearTimeout(effLache);
+  effPose=true; effT0=performance.now();
+  if(!effBoucle) effBoucle=setInterval(effTic,50);
+});
+function effRelache(){
+  if(!effBoucle) return;
+  effPose=false;
+  clearTimeout(effLache);
+  effLache=setTimeout(effRaz, 450);
+}
+effacer.addEventListener("pointerup", effRelache);
+effacer.addEventListener("pointerleave", effRelache);
+effacer.addEventListener("pointercancel", effRelache);
+
+document.getElementById("son").addEventListener("pointerdown", function(){
+  etat.son=!etat.son; this.setAttribute("aria-checked", etat.son?"true":"false");
+  if(!etat.son) spraySon(false,0); else clac();
+});
+var btnFond=document.getElementById("fond"), btnColo=document.getElementById("coloriage");
+function majSupport(){
+  btnFond.setAttribute("aria-checked", coloriage?"false":"true");
+  btnColo.setAttribute("aria-checked", coloriage?"true":"false");
+}
+btnFond.addEventListener("pointerdown", function(ev){
+  ev.stopPropagation(); clac();
+  if(!menu.hidden && menuTitre.textContent==="Le mur") fermerMenu();
+  else ouvrirMenu(btnFond,"mur");
+});
+btnColo.addEventListener("pointerdown", function(ev){
+  ev.stopPropagation(); clac();
+  if(!menu.hidden && menuTitre.textContent==="Coloriage") fermerMenu();
+  else ouvrirMenu(btnColo,"coloriage");
+});
+function pleinEcran(){
+  var el=document.documentElement;
+  if(!document.fullscreenElement){
+    (el.requestFullscreen||el.webkitRequestFullscreen).call(el);
+    document.body.classList.add("kiosque");
+  } else {
+    document.exitFullscreen(); document.body.classList.remove("kiosque");
+  }
+}
+document.addEventListener("keydown", function(e){
+  var k=e.key.toLowerCase();
+  if(k==="f") pleinEcran();
+  if(k==="z") annuler();
+  if(k==="s") enregistrer();
+  if(k==="d"){ diag.actif=!diag.actif; jauge.hidden=!diag.actif; }
+  if(k==="c") document.body.classList.toggle("kiosque");
+});
+
+/* ================= dimensionnement ================= */
+function placerPanneau(el,k,vh,origine){
+  el.style.transformOrigin = origine;
+  el.style.transform = "scale("+k+")";
+  var h = el.offsetHeight*k;
+  var t = (vh-h)/2 + vh*0.20;           // centre, puis 20% plus bas
+  t = Math.min(t, vh - h - 20);
+  el.style.top = Math.max(20, t)+"px";
+}
+function ajuster(){
+  var vw = window.innerWidth, vh = window.innerHeight;
+
+  // echelle des panneaux : ils doivent tenir en hauteur, sans jamais devenir minuscules
+  var hMax = droiteEl.offsetHeight || 700;
+  var k = Math.min(vw/1920, vh/1080);
+  k = Math.min(k, (vh*0.68)/hMax);      // les panneaux gardent de la marge sous eux
+  k = Math.max(0.40, k);
+  ECHD = k;
+  enseigneEl.style.transform = "translateX(-50%) scale("+k+")";
+  // ancre vers le bas : sur un ecran geant, le haut n'est pas a portee de main
+  placerPanneau(droiteEl, k, vh, "right top");
+
+  var hz = vh;
+  zoneEl.style.height = hz+"px";
+
+  var ancienW = W, ancienH = H, tampon = null;
+  if(ancienW){
+    tampon = document.createElement("canvas");
+    tampon.width = ancienW; tampon.height = ancienH;
+    tampon.getContext("2d").drawImage(cv,0,0);
+  }
+  W = vw; H = hz;
+  mur.width = W; mur.height = H; cv.width = W; cv.height = H;
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  if(tampon) ctx.drawImage(tampon, 0,0,ancienW,ancienH, 0,0,W,H);   // la fresque suit
+  ECH = W/1920;
+  histo.length = 0; coulures.length = 0;
+  tr.width=W; tr.height=H;
+  masque.width=W; masque.height=H;
+  seau.width=W; seau.height=H;
+  zoneActive=false;
+  dessinerFond();
+  dessinerTraits();
+}
+window.addEventListener("resize", function(){
+  clearTimeout(tRedim); tRedim = setTimeout(ajuster, 220);
+});
+document.addEventListener("fullscreenchange", function(){
+  clearTimeout(tRedim); tRedim = setTimeout(ajuster, 220);
+});
+majIconeRouleau();
+majSupport();
+majPastilleCouleur();
+ajuster();
+
+toast("LUMIIA Mur de Graff " + VERSION + " — " + window.innerWidth + "×" + window.innerHeight);
+})();
+</script>
+</body>
+</html>
