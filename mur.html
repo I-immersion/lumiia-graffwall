@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v5.1 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v5.2 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v5.1</title>
+<title>LUMIIA Mur de Graff — v5.2</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -208,9 +208,9 @@
 
   <div id="zone">
     <canvas id="mur"></canvas>
+    <canvas id="flot"></canvas>
     <canvas id="peinture"></canvas>
     <canvas id="traits"></canvas>
-    <canvas id="flot"></canvas>
     <div id="ombre"></div>
     <div id="toast"></div>
   </div>
@@ -218,7 +218,7 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v5.1</i>
+    <i>v5.2</i>
   </div>
 
   <aside class="panneau" id="droite">
@@ -498,7 +498,7 @@ return { matrice: matrice };
 <script>
 (function(){
 "use strict";
-var VERSION = "v5.1";
+var VERSION = "v5.2";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -1944,16 +1944,12 @@ function peindreObjet(g, o, halo){
   }
   g.restore();
 }
+/* Fixer verse l'objet dans le SUPPORT, pas dans la peinture : il reste ainsi
+   sous les graffs deja poses, et il n'est plus pilote par le telephone.
+   Il part avec un changement de mur, pas avec Effacer. */
 function collerObjet(o){
-  memoriser();
-  var lp=W*o.t, hp=(o.type==="sticker"||!o.im) ? lp : lp*(o.im.height/o.im.width);
-  var d=Math.hypot(lp,hp)*0.62+24;
   o.x=o.cx; o.y=o.cy; o.t=o.ct; o.r=o.cr;
-  marquer(o.x*W-d, o.y*H-d, o.x*W+d, o.y*H+d);
-  peindreObjet(ctx, o, false);
-  clore();
-  toast(o.type==="sticker" ? "Pastille collée" : "Photo collée");
-  clac();
+  peindreObjet(mctx, o, false);
 }
 
 /* Le mur publie une miniature de lui-meme : c'est le fond de cadrage du
@@ -1993,7 +1989,8 @@ function fixerTout(){
   var ids=Object.keys(flottants);
   if(!ids.length){ toast("Rien à fixer"); return; }
   ids.forEach(function(id){ collerObjet(flottants[id]); oublier(id); });
-  toast(ids.length>1 ? (ids.length+" objets fixés") : "Objet fixé");
+  dessinerFlottants();
+  toast(ids.length>1 ? (ids.length+" objets fixés au mur") : "Objet fixé au mur");
   majFixer();
 }
 function majFixer(){
@@ -2252,9 +2249,10 @@ function signer(g,LW,LH){
 function composer(){                          // les couches dessinees, sans les panneaux
   var c=document.createElement("canvas"); c.width=W; c.height=H;
   var g=c.getContext("2d");
-  g.drawImage(mur,0,0); g.drawImage(cv,0,0);
+  g.drawImage(mur,0,0);
+  for(var id in flottants) peindreObjet(g, flottants[id], false);  // sous la peinture
+  g.drawImage(cv,0,0);
   if(coloriage) g.drawImage(tr,0,0);
-  for(var id in flottants) peindreObjet(g, flottants[id], false);  // ce qui flotte compte aussi
   signer(g,W,H);
   return c;
 }

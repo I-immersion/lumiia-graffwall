@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — PHOTO v5.1 — cadrage tactile depuis le telephone -->
+<!-- LUMIIA MUR DE GRAFF — PHOTO v5.2 — cadrage tactile depuis le telephone -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -101,7 +101,7 @@
 
 <header>
   <h1><span>LUMIIA</span> Mur de Graff</h1>
-  <div id="ver">v5.1</div>
+  <div id="ver">v5.2</div>
   <div id="salle">—</div>
 </header>
 
@@ -719,7 +719,7 @@ champ.addEventListener("change", function(){
         var o={ id:nouvelId(), type:"photo", im:im, x:.5, y:.45, t:.3, r:0 };
         msg("Envoi…");
         deposer({ type:"photo", img:dURL }, o)
-          .then(function(){ msg("Cadre puis colle","ok"); })
+          .then(function(){ msg("Cadre-la comme tu veux","ok"); })
           .catch(function(e){ msg("Échec : "+e.message,"ko"); delete objets[o.id]; choisi=null; rendre(); });
       };
       im.src=dURL;
@@ -755,7 +755,7 @@ function envoyerPastille(dURL, tailleDepart){
     var o={ id:nouvelId(), type:"photo", nue:1, im:im, x:.5, y:.45, t:tailleDepart, r:0 };
     msg("Envoi…");
     deposer({ type:"photo", nue:1, img:dURL }, o)
-      .then(function(){ msg("Place puis colle","ok"); })
+      .then(function(){ msg("Place-la comme tu veux","ok"); })
       .catch(function(e){ msg("Échec : "+e.message,"ko"); delete objets[o.id]; choisi=null; rendre(); });
   };
   im.src=dURL;
