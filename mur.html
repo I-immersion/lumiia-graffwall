@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v5.0 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v5.1 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v5.0</title>
+<title>LUMIIA Mur de Graff — v5.1</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -218,7 +218,7 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v5.0</i>
+    <i>v5.1</i>
   </div>
 
   <aside class="panneau" id="droite">
@@ -498,7 +498,7 @@ return { matrice: matrice };
 <script>
 (function(){
 "use strict";
-var VERSION = "v5.0";
+var VERSION = "v5.1";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -1929,14 +1929,18 @@ function peindreObjet(g, o, halo){
     g.fillText(o.car||"?", 0, 0);
   } else if(o.im){
     hp=lp*(o.im.height/o.im.width);
-    marge=Math.max(5, lp*0.035);
-    g.fillStyle="rgba(0,0,0,.4)";
-    g.fillRect(-lp/2-marge+7, -hp/2-marge+9, lp+marge*2, hp+marge*2);
-    g.fillStyle="#f6f4ec";
-    g.fillRect(-lp/2-marge, -hp/2-marge, lp+marge*2, hp+marge*2);
-    g.drawImage(o.im, -lp/2, -hp/2, lp, hp);
-    g.strokeStyle="rgba(0,0,0,.22)"; g.lineWidth=2;
-    g.strokeRect(-lp/2, -hp/2, lp, hp);
+    if(o.nue){                                   // pastille : fond transparent
+      g.drawImage(o.im, -lp/2, -hp/2, lp, hp);
+    } else {                                     // photo : tirage avec marge blanche
+      marge=Math.max(5, lp*0.035);
+      g.fillStyle="rgba(0,0,0,.4)";
+      g.fillRect(-lp/2-marge+7, -hp/2-marge+9, lp+marge*2, hp+marge*2);
+      g.fillStyle="#f6f4ec";
+      g.fillRect(-lp/2-marge, -hp/2-marge, lp+marge*2, hp+marge*2);
+      g.drawImage(o.im, -lp/2, -hp/2, lp, hp);
+      g.strokeStyle="rgba(0,0,0,.22)"; g.lineWidth=2;
+      g.strokeRect(-lp/2, -hp/2, lp, hp);
+    }
   }
   g.restore();
 }
@@ -1969,7 +1973,7 @@ function chargerObjet(id, d){
     .then(function(r){ return r.ok ? r.json() : null; })
     .then(function(ob){
       if(!ob) return;
-      var o={ type:ob.type, car:ob.car, im:null,
+      var o={ type:ob.type, car:ob.car, nue:ob.nue, im:null,
               x:d.x, y:d.y, t:d.t, r:d.r, cx:d.x, cy:d.y, ct:d.t, cr:d.r };
       if(ob.type==="sticker"){ flottants[id]=o; reveiller(); return; }
       var img=new Image();
@@ -2024,7 +2028,7 @@ function releverPositions(){
 
 function ouvrirPhoto(){
   fermerMenu(); fermerCouleurs();
-  var url = BASE_PHOTO+"?s="+salle;
+  var url = BASE_PHOTO+"?s="+salle+"&v="+VERSION.replace("v","");
   if(!dessinerQR(document.getElementById("qr"), url)) toast("QR indisponible");
   photoPan.hidden=false;
   if(!ecoute){ releverPositions(); ecoute=setInterval(releverPositions, 380); }
