@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — GALERIE v2.5 — lecture de /graffwall (lumiia-live)
+<!-- LUMIIA MUR DE GRAFF — GALERIE v3.2 — lecture de /graffwall (lumiia-live)
      Le numero de version est commun au jeu et a la galerie : les deux sont
      exportes ensemble sous le meme numero a chaque livraison. -->
 <html lang="fr">
@@ -79,13 +79,24 @@
   .act.rouge{border-color:rgba(209,68,31,.6);color:#f0b6a4}
   .act svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   #info{text-align:center;font-size:13px;color:rgba(242,240,230,.55);letter-spacing:.05em}
+  #info b{color:var(--acid);font-weight:800}
+  .fleche{
+    position:absolute;top:50%;transform:translateY(-50%);z-index:60;
+    width:64px;height:104px;border:2px solid var(--ligne);border-radius:12px;
+    background:rgba(24,23,16,.82);color:var(--trace);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .fleche:hover{border-color:var(--acid);background:rgba(32,31,20,.95)}
+  .fleche svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  #precedent{left:16px} #suivant{right:16px}
+  .fleche[hidden]{display:none}
 </style>
 </head>
 <body>
 
 <header>
   <h1><span>LUMIIA</span> Mur de Graff — Galerie</h1>
-  <div id="version">v2.5</div>
+  <div id="version">v3.2</div>
   <div id="compte">chargement…</div>
   <div id="jours"></div>
 </header>
@@ -94,6 +105,12 @@
 <div id="vide" hidden></div>
 
 <div id="vue">
+  <button class="fleche" id="precedent" aria-label="Précédente">
+    <svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8"/></svg>
+  </button>
+  <button class="fleche" id="suivant" aria-label="Suivante">
+    <svg viewBox="0 0 24 24"><path d="m9 4 8 8-8 8"/></svg>
+  </button>
   <img id="vueImg" alt="">
   <div id="info"></div>
   <div id="barre">
@@ -135,7 +152,7 @@ var elJours=document.getElementById("jours"), elGrille=document.getElementById("
     elVide=document.getElementById("vide"), elCompte=document.getElementById("compte"),
     vue=document.getElementById("vue"), vueImg=document.getElementById("vueImg"),
     info=document.getElementById("info");
-var jours=[], jourActif=null, items=[], courant=null;
+var jours=[], jourActif=null, items=[], courant=null, iCourant=0;
 
 function frHeure(h){ return (h||"").slice(0,5); }   // 02h18m14 -> 02h18
 function frJour(j){
@@ -199,9 +216,12 @@ function ouvrirJour(j){
 
 /* ---------- visionneuse ---------- */
 function montrer(n){
-  courant=items[n];
+  iCourant=n; courant=items[n];
+  document.getElementById("precedent").hidden = items.length<2;
+  document.getElementById("suivant").hidden   = items.length<2;
   vueImg.src=courant.url;
-  info.textContent=(courant.support||"")+" · "+frJour(jourActif)+" à "+frHeure(courant.heure);
+  info.innerHTML="<b>"+(n+1)+" / "+items.length+"</b> &nbsp;·&nbsp; "+
+                 (courant.support||"")+" · "+frJour(jourActif)+" à "+frHeure(courant.heure);
   var texte="Mon graff LUMIIA : "+courant.url;
   document.getElementById("aWhats").href="https://wa.me/?text="+encodeURIComponent(texte);
   document.getElementById("aMail").href="mailto:?subject="+
@@ -210,9 +230,29 @@ function montrer(n){
   document.getElementById("aPartager").hidden = !navigator.share;
   vue.classList.add("on");
 }
+/* --- passer d'une fresque a l'autre : fleches, clavier, glissement --- */
+function glisser(d){
+  if(items.length<2) return;
+  montrer((iCourant+d+items.length)%items.length);
+}
+document.getElementById("precedent").addEventListener("click", function(e){ e.stopPropagation(); glisser(-1); });
+document.getElementById("suivant").addEventListener("click",  function(e){ e.stopPropagation(); glisser(1); });
+var xDepart=null;
+vueImg.addEventListener("pointerdown", function(e){ xDepart=e.clientX; });
+vueImg.addEventListener("pointerup", function(e){
+  if(xDepart===null) return;
+  var d=e.clientX-xDepart; xDepart=null;
+  if(Math.abs(d)>60) glisser(d<0 ? 1 : -1);
+});
+
 document.getElementById("aFermer").addEventListener("click", function(){ vue.classList.remove("on"); });
 vue.addEventListener("click", function(e){ if(e.target===vue) vue.classList.remove("on"); });
-document.addEventListener("keydown", function(e){ if(e.key==="Escape") vue.classList.remove("on"); });
+document.addEventListener("keydown", function(e){
+  if(e.key==="Escape") vue.classList.remove("on");
+  if(!vue.classList.contains("on")) return;
+  if(e.key==="ArrowLeft")  glisser(-1);
+  if(e.key==="ArrowRight") glisser(1);
+});
 
 document.getElementById("aPartager").addEventListener("click", function(){
   if(!navigator.share) return;
