@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v4.2 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v4.4 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v4.2</title>
+<title>LUMIIA Mur de Graff — v4.4</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -30,7 +30,7 @@
   /* ---------- MUR ---------- */
   #zone{position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden}
   #zone canvas{position:absolute;top:0;left:0;width:100%;height:100%}
-  #traits{pointer-events:none}   /* la couche des traits ne doit pas voler les touches */
+  #traits,#flot{pointer-events:none}   /* la couche des traits ne doit pas voler les touches */
   #ombre{
     position:absolute;inset:0;pointer-events:none;
     box-shadow:inset 0 -60px 90px -40px rgba(0,0,0,.75), inset 0 0 240px rgba(0,0,0,.45);
@@ -84,7 +84,7 @@
     display:block;width:32px;height:32px;border-radius:50%;
     border:3px solid rgba(0,0,0,.4);box-shadow:0 0 0 2px rgba(242,240,230,.45);
   }
-  #couleurs{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:67px;gap:7px}
+  #couleurs{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:75px;gap:7px}
   .col{
     border:0;border-radius:5px;position:relative;cursor:pointer;
     box-shadow:inset 0 -14px 20px rgba(0,0,0,.34), 0 2px 0 rgba(0,0,0,.6);
@@ -111,6 +111,7 @@
   #poignee svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
   #poignee.ferme{transform:rotate(180deg)}
   #outils{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
+  #outils #btnCouleur{grid-column:1}
   /* curseur de calibre : un coin qui s'epaissit vers les gros traits */
   #curseur{position:relative;width:231px;height:62px;cursor:pointer;touch-action:none}
   #coin{
@@ -212,6 +213,7 @@
     <canvas id="mur"></canvas>
     <canvas id="peinture"></canvas>
     <canvas id="traits"></canvas>
+    <canvas id="flot"></canvas>
     <div id="ombre"></div>
     <div id="toast"></div>
   </div>
@@ -219,7 +221,7 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v4.2</i>
+    <i>v4.4</i>
   </div>
 
   <aside class="panneau" id="droite">
@@ -496,7 +498,7 @@ return { matrice: matrice };
 <script>
 (function(){
 "use strict";
-var VERSION = "v4.2";
+var VERSION = "v4.4";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -1197,7 +1199,8 @@ var PALETTE = [
 var etat = {
   couleur:{r:224,v:27,b:36}, hex:"#e01b24", outil:"bombe", taille:15, son:true,
   fx:"chrome",                 // effet actif de l'outil FX
-  rouleau:"vertical", rouleauAng:0   // orientation figee du rouleau
+  rouleau:"vertical", rouleauAng:0,  // orientation figee du rouleau
+  sym:0                              // symetrie radiale : 0 = aucune
 };
 
 function calibre(){ return Math.max(3, etat.taille*ECH); }
@@ -1249,6 +1252,8 @@ var OUTILS = [
   { id:"rouleau", nom:"Rouleau",  ico:'<rect x="3" y="4" width="13" height="6" rx="1.5"/><path d="M16 7h3v5h-6v9"/><line id="axeRouleau" x1="12" y1="15" x2="12" y2="23" stroke-width="3.4"/>', menu:"rouleau" },
   { id:"fx",      nom:"FX",       ico:'<path d="M12 3l2.2 5.3L20 9l-4 4 1 6-5-2.8L7 19l1-6-4-4 5.8-.7z"/>', menu:"fx" },
   { id:"seau",    nom:"Seau",     ico:'<path d="M5 8h14l-1.5 12h-11z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><path d="M5 12h14"/>' },
+  { id:"symetrie", nom:"Symétrie", ouvre:"symetrie", menu:"symetrie",
+    ico:'<circle cx="12" cy="12" r="2.4"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5M6 6l3.2 3.2M14.8 14.8 18 18M18 6l-3.2 3.2M9.2 14.8 6 18"/>' },
   { id:"couleur", nom:"Couleur",  ouvre:"couleurs" },
   { id:"gomme",   nom:"Nettoyer", ico:'<path d="M4 15l7-7 7 7-4 4H8z"/><path d="M9 20h11"/>' }
 ];
@@ -1256,6 +1261,17 @@ var bo = document.getElementById("outils");
 OUTILS.forEach(function(o){
   var b=document.createElement("button");
   b.className="btn";
+  if(o.ouvre==="symetrie"){                       // reglage, pas un outil
+    b.id="btnSym";
+    b.innerHTML='<svg viewBox="0 0 24 24">'+o.ico+'</svg><span>'+o.nom+'</span>';
+    b.setAttribute("aria-checked", etat.sym ? "true":"false");
+    b.addEventListener("pointerdown", function(ev){
+      ev.stopPropagation(); clac(); fermerCouleurs();
+      if(!menu.hidden && menuTitre.textContent===MENUS.symetrie.titre) fermerMenu();
+      else ouvrirMenu(b,"symetrie");
+    });
+    bo.appendChild(b); return;
+  }
   if(o.ouvre==="couleurs"){                       // ouvre la palette, ne change pas d'outil
     b.id="btnCouleur";
     b.innerHTML='<i class="pastilleCouleur"></i><span>'+o.nom+'</span>';
@@ -1297,7 +1313,26 @@ function retirerSupport(){
   coloriage=false; iDessin=-1; iFond=-1;
   dessinerFond(); dessinerTraits(); majSupport();
 }
+function iconeSym(n){
+  if(!n) return '<path d="M18 6 6 18M6 6l12 12"/>';
+  var s='<circle cx="12" cy="12" r="1.8"/>';
+  for(var i=0;i<n;i++){
+    var a=i*Math.PI*2/n;
+    s+='<path d="M12 12L'+(12+Math.cos(a)*9).toFixed(1)+' '+(12+Math.sin(a)*9).toFixed(1)+'"/>';
+  }
+  return s;
+}
 var MENUS = {
+  symetrie: { titre:"Symétrie",
+    items:[0,4,6,8,12,16].map(function(n){
+      return { id:"s"+n, n:n, nom:(n?n+" branches":"Aucune"), ico:iconeSym(n), croix:(n===0) };
+    }),
+    actif:function(it){ return etat.sym===it.n; },
+    set:function(it){
+      etat.sym=it.n;
+      var b=document.getElementById("btnSym");
+      if(b) b.setAttribute("aria-checked", etat.sym?"true":"false");
+    } },
   mur: { titre:"Le mur", items:FONDS.concat([AUCUN]),
     actif:function(it){ return !coloriage && (it.croix ? iFond<0 : (iFond>=0 && FONDS[iFond].id===it.id)); },
     set:function(it,n){
@@ -1739,7 +1774,7 @@ function pulse(ts){
     if(imm < 55) continue;
     t.stat += dt;
     mult = 1 + Math.min(1.35, t.stat/1000);
-    poser(t, t.x, t.y, 0, mult, dt/16*0.5);
+    multiplier(t, t.x, t.y, 0, mult, dt/16*0.5);
     if(etat.outil!=="gomme" && etat.outil!=="fx"){
       t.jus += dt * (etat.outil==="fatcap" ? 0.75 : 0.38) * (0.75 + calibre()/45);
       seuil = 620;
@@ -1750,7 +1785,8 @@ function pulse(ts){
     }
   }
 
-  boucle = (coulures.length || Object.keys(traces).length) ? requestAnimationFrame(pulse) : null;
+  var flActifs = dessinerFlottants();
+  boucle = (coulures.length || Object.keys(traces).length || flActifs) ? requestAnimationFrame(pulse) : null;
 }
 
 /* ================= historique ================= */
@@ -1860,56 +1896,123 @@ function dessinerQR(cible, texte){
   return true;
 }
 
-/* Colle la photo comme une affiche : legere inclinaison, marge blanche, ombre. */
-function collerPhoto(img){
-  var lp = W*0.30, r = img.height/img.width, hp = lp*r;
-  if(hp > H*0.52){ hp = H*0.52; lp = hp/r; }
-  var marge = Math.max(6, lp*0.035);
-  var x = alea(W*0.14, W*0.86-lp), y = alea(H*0.12, H*0.72-hp);
-  var ang = alea(-0.09, 0.09);
+/* ---- objets flottants : photos et pastilles envoyees du telephone ----
+   Ils vivent au-dessus de la fresque sans y appartenir, tant que le telephone
+   qui les a envoyes ne les a pas colles. La position arrive par a-coups (la
+   base est interrogee, pas ecoutee) : on interpole vers la position recue,
+   sinon le deplacement serait saccade. */
+var fl=null, flc=null, flottants={}, tVue=0;
 
+function dessinerFlottants(){
+  if(!flc) return false;
+  flc.setTransform(1,0,0,1,0,0);
+  flc.clearRect(0,0,W,H);
+  var actif=false;
+  for(var id in flottants){
+    var o=flottants[id]; actif=true;
+    o.x += (o.cx-o.x)*0.22; o.y += (o.cy-o.y)*0.22;
+    o.t += (o.ct-o.t)*0.22; o.r += (o.cr-o.r)*0.22;
+    peindreObjet(flc, o, true);
+  }
+  return actif;
+}
+function peindreObjet(g, o, halo){
+  var lp=W*o.t, hp, marge;
+  g.save();
+  g.translate(o.x*W, o.y*H); g.rotate(o.r);
+  if(o.type==="sticker"){
+    g.font=Math.round(lp)+"px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif";
+    g.textAlign="center"; g.textBaseline="middle";
+    if(halo){ g.shadowColor="rgba(0,0,0,.45)"; g.shadowBlur=lp*0.12; }
+    g.fillText(o.car||"?", 0, 0);
+  } else if(o.im){
+    hp=lp*(o.im.height/o.im.width);
+    marge=Math.max(5, lp*0.035);
+    g.fillStyle="rgba(0,0,0,.4)";
+    g.fillRect(-lp/2-marge+7, -hp/2-marge+9, lp+marge*2, hp+marge*2);
+    g.fillStyle="#f6f4ec";
+    g.fillRect(-lp/2-marge, -hp/2-marge, lp+marge*2, hp+marge*2);
+    g.drawImage(o.im, -lp/2, -hp/2, lp, hp);
+    g.strokeStyle="rgba(0,0,0,.22)"; g.lineWidth=2;
+    g.strokeRect(-lp/2, -hp/2, lp, hp);
+  }
+  g.restore();
+}
+function collerObjet(o){
   memoriser();
-  var d = Math.hypot(lp,hp)*0.6 + marge*2;
-  marquer(x+lp/2-d, y+hp/2-d, x+lp/2+d, y+hp/2+d);
-
-  ctx.save();
-  ctx.translate(x+lp/2, y+hp/2); ctx.rotate(ang);
-  ctx.fillStyle="rgba(0,0,0,.45)";
-  ctx.fillRect(-lp/2-marge+8, -hp/2-marge+10, lp+marge*2, hp+marge*2);
-  ctx.fillStyle="#f6f4ec";
-  ctx.fillRect(-lp/2-marge, -hp/2-marge, lp+marge*2, hp+marge*2);
-  ctx.drawImage(img, -lp/2, -hp/2, lp, hp);
-  ctx.strokeStyle="rgba(0,0,0,.22)"; ctx.lineWidth=2;
-  ctx.strokeRect(-lp/2, -hp/2, lp, hp);
-  ctx.restore();
+  var lp=W*o.t, hp=(o.type==="sticker"||!o.im) ? lp : lp*(o.im.height/o.im.width);
+  var d=Math.hypot(lp,hp)*0.62+24;
+  o.x=o.cx; o.y=o.cy; o.t=o.ct; o.r=o.cr;
+  marquer(o.x*W-d, o.y*H-d, o.x*W+d, o.y*H+d);
+  peindreObjet(ctx, o, false);
   clore();
-  toast("Photo reçue");
+  toast(o.type==="sticker" ? "Pastille collée" : "Photo collée");
   clac();
 }
 
-function releverEnvois(){
-  fetch(RTDB+"/graffwall/envois/"+salle+".json")
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(o){
-      if(!o) return;
-      Object.keys(o).forEach(function(id){
-        if(vus[id] || !o[id] || !o[id].img) return;
-        vus[id]=1;
-        var img=new Image();
-        img.onload=function(){ collerPhoto(img); };
-        img.src=o[id].img;                       // image en texte : pas de contamination
-        fetch(RTDB+"/graffwall/envois/"+salle+"/"+id+".json",{method:"DELETE"}).catch(function(){});
-      });
-    })
-    .catch(function(){});
+/* Le mur publie une miniature de lui-meme : c'est le fond de cadrage du
+   telephone. Seulement quand quelqu'un cadre, pour ne pas ecrire en continu. */
+function publierVue(){
+  var lm=420, c=document.createElement("canvas");
+  c.width=lm; c.height=Math.max(1, Math.round(lm*H/W));
+  var g=c.getContext("2d");
+  g.drawImage(mur,0,0,c.width,c.height);
+  g.drawImage(cv,0,0,c.width,c.height);
+  if(coloriage) g.drawImage(tr,0,0,c.width,c.height);
+  fetch(RTDB+"/graffwall/envois/"+salle+"/vue.json",
+        { method:"PUT", body: JSON.stringify(c.toDataURL("image/jpeg",.55)) }).catch(function(){});
 }
+function chargerObjet(id, d){
+  fetch(RTDB+"/graffwall/envois/"+salle+"/objets/"+id+".json")
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(ob){
+      if(!ob) return;
+      var o={ type:ob.type, car:ob.car, im:null,
+              x:d.x, y:d.y, t:d.t, r:d.r, cx:d.x, cy:d.y, ct:d.t, cr:d.r };
+      if(ob.type==="sticker"){ flottants[id]=o; reveiller(); return; }
+      var img=new Image();
+      img.onload=function(){ o.im=img; flottants[id]=o; reveiller(); };
+      img.src=ob.img;
+    }).catch(function(){});
+}
+function oublier(id){
+  delete flottants[id];
+  fetch(RTDB+"/graffwall/envois/"+salle+"/pos/"+id+".json",{method:"DELETE"}).catch(function(){});
+  fetch(RTDB+"/graffwall/envois/"+salle+"/objets/"+id+".json",{method:"DELETE"}).catch(function(){});
+}
+function releverPositions(){
+  fetch(RTDB+"/graffwall/envois/"+salle+"/pos.json")
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(p){
+      p=p||{};
+      for(var id in p){
+        var d=p[id];
+        if(!d) continue;
+        if(!flottants[id]){
+          if(!vus[id]){ vus[id]=1; chargerObjet(id,d); }
+          continue;
+        }
+        var o=flottants[id];
+        o.cx=d.x; o.cy=d.y; o.ct=d.t; o.cr=d.r;
+        if(d.colle){ collerObjet(o); oublier(id); }
+      }
+      for(var k in flottants) if(!p[k]) delete flottants[k];
+      reveiller();
+    }).catch(function(){});
+
+  var m=Date.now();
+  if(m-tVue>2000 && photoPan && (!photoPan.hidden || Object.keys(flottants).length)){
+    tVue=m; publierVue();
+  }
+}
+
 function ouvrirPhoto(){
   fermerMenu(); fermerCouleurs();
   var url = BASE_PHOTO+"?s="+salle;
   if(!dessinerQR(document.getElementById("qr"), url)) toast("QR indisponible");
   document.getElementById("salleCode").textContent = salle;
   photoPan.hidden=false;
-  if(!ecoute){ releverEnvois(); ecoute=setInterval(releverEnvois, 3000); }
+  if(!ecoute){ releverPositions(); ecoute=setInterval(releverPositions, 380); }
 }
 function fermerPhoto(){ photoPan.hidden=true; }
 
@@ -1944,6 +2047,18 @@ var traces={};
 function pos(e){
   var r=cv.getBoundingClientRect();
   return { x:(e.clientX-r.left)*(W/r.width), y:(e.clientY-r.top)*(H/r.height) };
+}
+/* Symetrie radiale : chaque empreinte est repetee autour du centre du geste,
+   qui est le premier point pose. Un trait vers la droite devient une fleur a
+   n branches. C'est la meme chose que le mode kaleidoscope d'un logiciel de
+   dessin — on tourne les coordonnees, pas le canvas. */
+function multiplier(t,x,y,vitesse,mult,dens){
+  if(!etat.sym || t.cx===undefined){ poser(t,x,y,vitesse,mult,dens); return; }
+  var dx=x-t.cx, dy=y-t.cy, r=Math.hypot(dx,dy), a0=Math.atan2(dy,dx), pas=TAU/etat.sym;
+  for(var i=0;i<etat.sym;i++){
+    var a=a0+i*pas;
+    poser(t, t.cx+Math.cos(a)*r, t.cy+Math.sin(a)*r, vitesse, mult, dens);
+  }
 }
 var zoneActive=false;
 function poser(t,x,y,vitesse,mult,dens){
@@ -1993,8 +2108,9 @@ function debut(e){
   } else if(etat.outil==="seau"){
     toast("Le seau ne marche qu'en coloriage"); return;
   }
-  traces[e.pointerId]={ x:p.x, y:p.y, c:hex2rgb(etat.hex), ang:0, jus:0, stat:0, tMove:performance.now() };
-  poser(traces[e.pointerId], p.x, p.y, 0, 1, 1);
+  traces[e.pointerId]={ x:p.x, y:p.y, cx:p.x, cy:p.y,     // cx,cy : centre de la symetrie
+                        c:hex2rgb(etat.hex), ang:0, jus:0, stat:0, tMove:performance.now() };
+  multiplier(traces[e.pointerId], p.x, p.y, 0, 1, 1);
   spraySon(true,0);
   reveiller();
 }
@@ -2004,7 +2120,7 @@ function tracerVers(t,p){
   var dx=p.x-t.x, dy=p.y-t.y, dist=Math.hypot(dx,dy);
   var pas=Math.max(1.2, calibre()*0.11), n=Math.ceil(dist/pas), i;
   if(dist>0.4) t.ang=Math.atan2(dy,dx)+Math.PI/2;
-  for(i=1;i<=n;i++) poser(t, t.x+dx*i/n, t.y+dy*i/n, dist/n*3, 1, 1);
+  for(i=1;i<=n;i++) multiplier(t, t.x+dx*i/n, t.y+dy*i/n, dist/n*3, 1, 1);
   diag.emp+=n;
   // la main bouge : la charge de peinture et l'elargissement retombent
   if(dist > calibre()*0.18){
@@ -2321,6 +2437,7 @@ function ajuster(){
   ECH = W/1920;
   histo.length = 0; poids = 0; pileRefaire.length = 0; coulures.length = 0;
   tr.width=W; tr.height=H;
+  fl.width=W; fl.height=H;
   masque.width=W; masque.height=H;
   seau.width=W; seau.height=H;
   zoneActive=false;
@@ -2333,9 +2450,11 @@ window.addEventListener("resize", function(){
 document.addEventListener("fullscreenchange", function(){
   clearTimeout(tRedim); tRedim = setTimeout(ajuster, 220);
 });
+fl=document.getElementById("flot"); flc=fl.getContext("2d");
 brancherCurseur();
 majRetours();
 photoPan=document.getElementById("photoPan");
+ecoute=setInterval(releverPositions, 380);
 document.getElementById("photo").addEventListener("pointerdown", function(ev){
   ev.stopPropagation(); clac();
   if(!photoPan.hidden) fermerPhoto(); else ouvrirPhoto();
