@@ -2,6 +2,8 @@
 # LUMIIA — Mur de Graff : deploiement vers GitHub Pages.
 # Usage : ./deploy.sh
 #
+# Version : v1.1 — depuis la v1.1, recopie aussi mur.html dans la Defoule Room.
+#
 # Le script vit dans le depot (Page des photos). Il va chercher les fichiers
 # les plus recents dans le depot, dans le dossier parent (Game GraphWall) et
 # dans Telechargements — peu importe qu'ils s'appellent mur.html ou
@@ -88,6 +90,34 @@ if [ "$VJEU" != "$VGAL" ] || [ "$VJEU" != "$VPHO" ]; then
   exit 1
 fi
 vert "version $VJEU (jeu, galerie et page photo)"
+
+# --- le mur part aussi dans la Defoule Room -------------------------
+# Le mur existe en deux exemplaires : celui du depot, publie en ligne, et
+# une copie locale que la Defoule Room ouvre dans sa tuile GRAFF (elle
+# tourne hors ligne en soiree, elle ne peut donc pas viser l'adresse
+# publique). Deux copies synchronisees a la main finissent toujours par
+# diverger : c'est arrive. On recopie donc ici, a chaque deploiement.
+# Cible : chaque sous-dossier de "Game-shooter + graff Wall" qui contient
+# le jeu. Un dossier renomme suit tout seul ; les archives, qui rangent le
+# jeu un cran plus bas, ne sont pas touchees.
+JEUX="$(dirname "$PARENT")/Game-shooter + graff Wall"
+PORTES=0
+if [ -d "$JEUX" ]; then
+  for d in "$JEUX"/*/; do
+    [ -f "$d/lumiia-defoule-room.html" ] || continue
+    if cp -f "$DEPOT/mur.html" "$d/mur.html"; then
+      gris "  mur.html  ->  $(basename "$d")"
+      PORTES=$((PORTES+1))
+    fi
+  done
+fi
+if [ "$PORTES" -eq 0 ]; then
+  rouge "Defoule Room introuvable : le mur n'a ete recopie nulle part."
+  echo "  cherche dans : $JEUX"
+else
+  vert "mur.html recopie dans $PORTES dossier(s) Defoule Room"
+fi
+
 
 # --- y a-t-il quelque chose a envoyer ---
 if [ -z "$(git status --porcelain)" ]; then
