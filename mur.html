@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v5.2 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v5.3 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v5.2</title>
+<title>LUMIIA Mur de Graff — v5.3</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -190,6 +190,7 @@
     font-size:30px;text-transform:uppercase;transform:skewX(-7deg);letter-spacing:.01em;
   }
   #photoPan p{font-size:15px;color:rgba(242,240,230,.6);max-width:340px;text-align:center;line-height:1.5}
+  #photoPan #qrCompte{font-size:14px;font-weight:700;color:var(--acid);opacity:.8;letter-spacing:.03em}
   #qr{background:#fff;padding:12px;border-radius:10px;display:block}
   #photoPan .btn{width:190px;height:58px;flex-direction:row;gap:9px}
 
@@ -218,7 +219,7 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v5.2</i>
+    <i>v5.3</i>
   </div>
 
   <aside class="panneau" id="droite">
@@ -298,6 +299,7 @@
     <h2>Envoie ta photo</h2>
     <canvas id="qr" width="264" height="264"></canvas>
     <p>Scanne ce code avec ton téléphone. La photo apparaîtra sur le mur.</p>
+    <p id="qrCompte">Ce code disparaît dans 30 s</p>
     <button class="btn" id="photoFermer">
       <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Fermer</span>
     </button>
@@ -498,7 +500,7 @@ return { matrice: matrice };
 <script>
 (function(){
 "use strict";
-var VERSION = "v5.2";
+var VERSION = "v5.3";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -2023,14 +2025,36 @@ function releverPositions(){
   }
 }
 
+/* Le QR ne reste pas affiche : sur un mur d'evenement il masque une partie
+   de la surface et personne ne pense a le refermer. Trente secondes suffisent
+   a le scanner ; pour le revoir on rappuie sur le bouton photo. */
+var QR_DUREE = 30;                       // secondes d'affichage du QR
+var qrCompte=null, qrTicTac=null, qrReste=0;
+
+function majQrCompte(){
+  if(!qrCompte) return;
+  qrCompte.textContent = qrReste>0 ? ("Ce code disparaît dans "+qrReste+" s") : "";
+}
+function arreterQrCompte(){
+  clearInterval(qrTicTac); qrTicTac=null;
+}
 function ouvrirPhoto(){
   fermerMenu(); fermerCouleurs();
   var url = BASE_PHOTO+"?s="+salle+"&v="+VERSION.replace("v","");
   if(!dessinerQR(document.getElementById("qr"), url)) toast("QR indisponible");
   photoPan.hidden=false;
   if(!ecoute){ releverPositions(); ecoute=setInterval(releverPositions, 380); }
+  // Chaque ouverture repart de zero : rappuyer sur photo redonne 30 s pleines.
+  arreterQrCompte();
+  if(!qrCompte) qrCompte=document.getElementById("qrCompte");
+  qrReste=QR_DUREE; majQrCompte();
+  qrTicTac=setInterval(function(){
+    qrReste--;
+    majQrCompte();
+    if(qrReste<=0) fermerPhoto();
+  }, 1000);
 }
-function fermerPhoto(){ photoPan.hidden=true; }
+function fermerPhoto(){ arreterQrCompte(); photoPan.hidden=true; }
 
 /* ================= mesure (touche D) =================
    Compte ce qui arrive vraiment du capteur ou de la souris. Un trait pale
@@ -2337,9 +2361,33 @@ function effTic(){
   jauge.style.width=(p*100)+"%";
   if(p>=1){
     effRaz();
-    memoriserTout(); coulures.length=0; ctx.clearRect(0,0,W,H);
-    toast(coloriage?"Dessin remis à zéro":"Mur nettoyé"); clac();
+    nouvelleSession();
   }
+}
+
+/* Effacer = NOUVELLE SESSION, pas seulement un coup d'eponge sur la peinture.
+   Le mur repart vierge pour le groupe suivant : la peinture, les coulures,
+   les objets encore pilotes par un telephone ET les photos deja fixees dans
+   le support s'en vont ensemble. Les photos fixees sont peintes dans le
+   support (mctx) et non dans la peinture : c'est pour ca qu'il faut
+   REGENERER le fond, un simple clearRect sur la peinture les laissait.
+   En coloriage, les traits du dessin restent : c'est le support, pas l'oeuvre. */
+function nouvelleSession(){
+  memoriserTout();
+  coulures.length=0;
+  ctx.clearRect(0,0,W,H);
+
+  // Les objets envoyes depuis les telephones : on les retire aussi de la base,
+  // sinon le releve suivant les repose aussitot sur le mur.
+  Object.keys(flottants).forEach(function(id){ oublier(id); });
+  for(var k in vus) delete vus[k];
+  dessinerFlottants();
+  majFixer();
+
+  fermerPhoto();
+  dessinerFond();          // regenere le support : les photos fixees partent avec
+
+  toast(coloriage?"Dessin remis à zéro":"Nouvelle session"); clac();
 }
 function effRaz(){
   clearInterval(effBoucle); clearTimeout(effLache);
