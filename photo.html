@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — PHOTO v4.7 — cadrage tactile depuis le telephone -->
+<!-- LUMIIA MUR DE GRAFF — PHOTO v4.8 — cadrage tactile depuis le telephone -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -22,6 +22,10 @@
     font-size:20px;text-transform:uppercase;transform:skewX(-7deg);letter-spacing:.01em;
   }
   h1 span{color:var(--acid)}
+  #ver{
+    font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--acid);
+    border:1.5px solid rgba(200,255,30,.35);border-radius:5px;padding:2px 6px;
+  }
   #salle{font-size:11px;letter-spacing:.22em;color:rgba(242,240,230,.45);font-weight:700;margin-left:auto;cursor:pointer}
 
   #scene{
@@ -97,6 +101,7 @@
 
 <header>
   <h1><span>LUMIIA</span> Mur de Graff</h1>
+  <div id="ver">v4.8</div>
   <div id="salle">—</div>
 </header>
 
@@ -127,11 +132,9 @@
 <div id="mesObjets"></div>
 
 <div class="rangee">
-  <button class="btn vif" id="coller" disabled>
-    <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span> Coller sur le mur</span>
-  </button>
-  <button class="btn rouge mince" id="retirer" disabled>
+  <button class="btn rouge" id="retirer" disabled>
     <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    Retirer du mur
   </button>
 </div>
 
@@ -452,7 +455,7 @@ var salle  = (params.get("s")||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(
 
 var scene=document.getElementById("scene"), vue=document.getElementById("vue"),
     vg=vue.getContext("2d"), vide=document.getElementById("vide"),
-    etat=document.getElementById("etat"), coller=document.getElementById("coller"),
+    etat=document.getElementById("etat"),
     retirer=document.getElementById("retirer"), champ=document.getElementById("fichier"),
     grille=document.getElementById("pastilles"), consigne=document.getElementById("consigne"),
     panRejoindre=document.getElementById("rejoindre");
@@ -550,7 +553,8 @@ function rendre(){
   var n=Object.keys(objets).length;
   consigne.textContent = choisi ? "Un doigt pour déplacer · deux doigts pour agrandir et tourner"
                        : (n ? "Touche un de tes objets pour le reprendre" : "Envoie une photo ou une pastille");
-  coller.disabled = !choisi; retirer.disabled = !choisi;
+  if(!choisi && n) msg("");
+  retirer.disabled = !choisi;
   majListe();
 }
 
@@ -802,28 +806,6 @@ document.getElementById("ouvrirPastilles").addEventListener("click", function(){
   if(ouvert && !ongletCourant) remplirGrille("emoji");
 });
 
-var confirmeColle=null;
-coller.addEventListener("click", function(){
-  var o=objets[choisi]; if(!o) return;
-  if(confirmeColle!==o.id){                      // premier appui : on previent
-    confirmeColle=o.id;
-    coller.querySelector("span").textContent=" Confirmer — définitif";
-    msg("Une fois collé, l'objet ne se déplace plus","ko");
-    setTimeout(function(){
-      if(confirmeColle===o.id){ confirmeColle=null; coller.querySelector("span").textContent=" Coller sur le mur"; msg(""); }
-    }, 4000);
-    return;
-  }
-  confirmeColle=null; coller.querySelector("span").textContent=" Coller sur le mur";
-  coller.disabled=true;
-  fetch(RTDB+"/graffwall/envois/"+salle+"/pos/"+o.id+".json",{
-    method:"PUT",
-    body: JSON.stringify({ x:o.x, y:o.y, t:o.t, r:o.r, colle:1, ts:Date.now() })
-  }).then(function(){
-    delete objets[o.id]; delete miens[o.id]; noterMiens(); choisi=null;
-    msg("Collé sur le mur","ok"); rendre();
-  }).catch(function(e){ msg("Échec : "+e.message,"ko"); coller.disabled=false; });
-});
 retirer.addEventListener("click", function(){
   var o=objets[choisi]; if(!o) return;
   var id=o.id;
