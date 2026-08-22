@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — GALERIE v1.1 — lecture de /graffwall (lumiia-live) -->
+<!-- LUMIIA MUR DE GRAFF — GALERIE v2.5 — lecture de /graffwall (lumiia-live)
+     Le numero de version est commun au jeu et a la galerie : les deux sont
+     exportes ensemble sous le meme numero a chaque livraison. -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -28,6 +30,10 @@
   }
   h1 span{color:var(--acid)}
   #compte{font-size:13px;color:rgba(242,240,230,.5);letter-spacing:.06em}
+  #version{
+    font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--acid);
+    border:2px solid rgba(200,255,30,.35);border-radius:6px;padding:4px 9px;
+  }
   #jours{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
   .jour{
     border:2px solid var(--ligne);background:#26241a;color:var(--trace);
@@ -79,6 +85,7 @@
 
 <header>
   <h1><span>LUMIIA</span> Mur de Graff — Galerie</h1>
+  <div id="version">v2.5</div>
   <div id="compte">chargement…</div>
   <div id="jours"></div>
 </header>
