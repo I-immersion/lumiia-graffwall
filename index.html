@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — GALERIE v1.0 — lecture de /graffwall (lumiia-live) -->
+<!-- LUMIIA MUR DE GRAFF — GALERIE v1.1 — lecture de /graffwall (lumiia-live) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -106,10 +106,10 @@
       <svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
       Copier le lien
     </button>
-    <button class="act" id="aTelecharger">
+    <a class="act" id="aTelecharger" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 21h16"/></svg>
-      Télécharger
-    </button>
+      Ouvrir l'image
+    </a>
     <button class="act rouge" id="aSupprimer">
       <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>
       Supprimer
@@ -130,6 +130,7 @@ var elJours=document.getElementById("jours"), elGrille=document.getElementById("
     info=document.getElementById("info");
 var jours=[], jourActif=null, items=[], courant=null;
 
+function frHeure(h){ return (h||"").slice(0,5); }   // 02h18m14 -> 02h18
 function frJour(j){
   var d=new Date(j+"T12:00:00");
   return d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short"});
@@ -181,7 +182,7 @@ function ouvrirJour(j){
         var c=document.createElement("div");
         c.className="carte";
         c.innerHTML='<img loading="lazy" src="'+it.vig+'" alt="">'+
-          '<div class="pied"><b>'+(it.heure||"").replace("h","h").replace("m","")+'</b>'+
+          '<div class="pied"><b>'+frHeure(it.heure)+'</b>'+
           '<span>'+(it.support||"")+'</span></div>';
         c.addEventListener("click", function(){ montrer(n); });
         elGrille.appendChild(c);
@@ -193,11 +194,12 @@ function ouvrirJour(j){
 function montrer(n){
   courant=items[n];
   vueImg.src=courant.url;
-  info.textContent=(courant.support||"")+" · "+frJour(jourActif)+" à "+(courant.heure||"").replace("h","h").replace("m","min");
+  info.textContent=(courant.support||"")+" · "+frJour(jourActif)+" à "+frHeure(courant.heure);
   var texte="Mon graff LUMIIA : "+courant.url;
   document.getElementById("aWhats").href="https://wa.me/?text="+encodeURIComponent(texte);
   document.getElementById("aMail").href="mailto:?subject="+
     encodeURIComponent("Ma fresque LUMIIA")+"&body="+encodeURIComponent(texte);
+  document.getElementById("aTelecharger").href=courant.url;
   document.getElementById("aPartager").hidden = !navigator.share;
   vue.classList.add("on");
 }
@@ -217,14 +219,9 @@ document.getElementById("aCopier").addEventListener("click", function(){
     setTimeout(function(){ b.lastChild.textContent=v; },1600);
   });
 });
-document.getElementById("aTelecharger").addEventListener("click", function(){
-  fetch(courant.url).then(function(r){ return r.blob(); }).then(function(b){
-    var u=URL.createObjectURL(b), a=document.createElement("a");
-    a.href=u; a.download="graff_"+jourActif+"_"+(courant.heure||"")+".jpg";
-    document.body.appendChild(a); a.click();
-    setTimeout(function(){ a.remove(); URL.revokeObjectURL(u); },3000);
-  });
-});
+/* Le bucket n'expose pas d'en-tete CORS : un fetch() de l'image echoue et
+   l'attribut download est ignore en cross-origin. On ouvre donc l'image dans
+   un onglet — clic droit "Enregistrer" sur ordinateur, appui long sur mobile. */
 document.getElementById("aSupprimer").addEventListener("click", function(){
   if(!confirm("Supprimer définitivement cette fresque ?")) return;
   var it=courant;
