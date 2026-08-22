@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v4.4 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v4.5 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v4.4</title>
+<title>LUMIIA Mur de Graff — v4.5</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -221,7 +221,7 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v4.4</i>
+    <i>v4.5</i>
   </div>
 
   <aside class="panneau" id="droite">
@@ -498,7 +498,7 @@ return { matrice: matrice };
 <script>
 (function(){
 "use strict";
-var VERSION = "v4.4";
+var VERSION = "v4.5";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -1919,11 +1919,13 @@ function dessinerFlottants(){
 function peindreObjet(g, o, halo){
   var lp=W*o.t, hp, marge;
   g.save();
+  g.globalAlpha=1;
   g.translate(o.x*W, o.y*H); g.rotate(o.r);
   if(o.type==="sticker"){
-    g.font=Math.round(lp)+"px system-ui, 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif";
+    // la police emoji couleur d'abord : sinon le glyphe part en contour pale
+    g.font=Math.round(lp)+"px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',system-ui,sans-serif";
     g.textAlign="center"; g.textBaseline="middle";
-    if(halo){ g.shadowColor="rgba(0,0,0,.45)"; g.shadowBlur=lp*0.12; }
+    g.globalAlpha=1; g.shadowBlur=0;
     g.fillText(o.car||"?", 0, 0);
   } else if(o.im){
     hp=lp*(o.im.height/o.im.width);
