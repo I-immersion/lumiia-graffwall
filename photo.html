@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — PHOTO v4.5 — cadrage tactile depuis le telephone -->
+<!-- LUMIIA MUR DE GRAFF — PHOTO v4.7 — cadrage tactile depuis le telephone -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -54,14 +54,28 @@
   .btn[disabled]{opacity:.3}
   .btn.mince{flex:0 0 62px;padding:15px 0}
 
+  #onglets .btn{padding:11px 6px;font-size:12px}
+  #onglets .btn[aria-current="true"]{background:var(--trace);color:#16150f}
   #pastilles{
     display:none;grid-template-columns:repeat(6,1fr);gap:6px;width:100%;max-width:520px;
     max-height:32vh;overflow-y:auto;padding:5px;
     background:#1c1b13;border-radius:12px;border:2px solid rgba(242,240,230,.12);
   }
   #pastilles.on{display:grid}
-  #pastilles button{border:0;background:#26241a;border-radius:9px;padding:8px 0;font-size:26px;cursor:pointer;line-height:1.1}
+  #pastilles button{border:0;background:#26241a;border-radius:9px;padding:6px 2px;font-size:26px;cursor:pointer;line-height:1.1;min-height:46px}
+  #pastilles.large{grid-template-columns:repeat(3,1fr)}
+  #pastilles img{width:100%;height:38px;object-fit:contain;display:block}
   #pastilles button:active{background:var(--acid)}
+  #mesObjets{
+    display:none;gap:7px;width:100%;max-width:520px;overflow-x:auto;padding:2px;
+  }
+  #mesObjets.on{display:flex}
+  #mesObjets button{
+    flex:0 0 54px;height:54px;border-radius:10px;border:2px solid rgba(242,240,230,.18);
+    background:#1c1b13;padding:0;overflow:hidden;cursor:pointer;
+  }
+  #mesObjets button[aria-current="true"]{border-color:var(--acid)}
+  #mesObjets img{width:100%;height:100%;object-fit:contain;display:block}
   #etat{font-size:13px;min-height:18px;letter-spacing:.03em;text-align:center}
   #etat.ok{color:var(--acid)} #etat.ko{color:#f0907a}
   input[type=file]{display:none}
@@ -104,12 +118,17 @@
   </button>
 </div>
 
+<div id="onglets" class="rangee" style="display:none">
+  <button class="btn" data-onglet="emoji" aria-current="true">Emojis</button>
+  <button class="btn" data-onglet="mot">Mots</button>
+  <button class="btn" data-onglet="visage">Visage</button>
+</div>
 <div id="pastilles"></div>
+<div id="mesObjets"></div>
 
 <div class="rangee">
   <button class="btn vif" id="coller" disabled>
-    <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
-    Coller sur le mur
+    <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span> Coller sur le mur</span>
   </button>
   <button class="btn rouge mince" id="retirer" disabled>
     <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -125,6 +144,304 @@
   <button class="btn vif" id="valider" style="max-width:230px">Rejoindre</button>
 </div>
 
+<script>
+/* Pastilles dessinees — mots et accessoires de visage.
+   Tout est trace au canvas : aucun fichier image, aucun droit a demander,
+   et le rendu reste net a n'importe quelle taille. */
+var PASTILLES = (function(){
+"use strict";
+
+/* ---------- mots ---------- */
+var MOTS = [
+  { t:"BOOM",   f:"#ffd400", b:"#e01b24", s:"bulle" },
+  { t:"POW!",   f:"#ff6a00", b:"#14120f", s:"bulle" },
+  { t:"WAOUH",  f:"#00b7e4", b:"#0b2a52", s:"bulle" },
+  { t:"BRAVO",  f:"#8cc63f", b:"#14120f", s:"bulle" },
+  { t:"SUPER",  f:"#ff2d95", b:"#3b0a26", s:"bulle" },
+  { t:"MERCI",  f:"#f5f3ee", b:"#8e44ad", s:"bulle" },
+  { t:"SALUT",  f:"#ffd400", b:"#0055d4", s:"bulle" },
+  { t:"COOL",   f:"#00e5c0", b:"#083b33", s:"bulle" },
+  { t:"TOP",    f:"#e01b24", b:"#14120f", s:"bulle" },
+  { t:"LOVE",   f:"#ff2d95", b:"#f5f3ee", s:"bulle" },
+  { t:"OUAIS",  f:"#ff6a00", b:"#14120f", s:"bulle" },
+  { t:"CHAMPION", f:"#ffd400", b:"#7a4b2a", s:"bulle" },
+  { t:"LEVEL UP", f:"#ffb020", b:"#4a1a86", s:"pixel" },
+  { t:"GAME OVER",f:"#e01b24", b:"#14120f", s:"pixel" },
+  { t:"NEW HIGH", f:"#8cc63f", b:"#14120f", s:"pixel" },
+  { t:"BONUS",  f:"#00b7e4", b:"#0b2a52", s:"pixel" },
+  { t:"START",  f:"#f5f3ee", b:"#14120f", s:"pixel" },
+  { t:"JOYEUX ANNIV", f:"#00b7e4", b:"#f5f3ee", s:"bulle" },
+  { t:"FELICITATIONS", f:"#ffd400", b:"#e01b24", s:"bulle" },
+  { t:"BIENVENUE", f:"#8cc63f", b:"#14120f", s:"bulle" },
+  { t:"LUMIIA", f:"#c8ff1e", b:"#14120f", s:"bulle" },
+  { t:"1ER",    f:"#ffd400", b:"#7a4b2a", s:"pixel" }
+];
+
+function motCanvas(m, T){
+  var L=T, H=Math.round(T*0.52);
+  var c=document.createElement("canvas"); c.width=L; c.height=H;
+  var g=c.getContext("2d");
+  var police = m.s==="pixel"
+    ? "'Courier New',monospace"
+    : "Impact,Haettenschweiler,'Arial Narrow',sans-serif";
+  var taille=Math.round(H*(m.s==="pixel"?0.80:0.62)), tr;
+  g.textAlign="center"; g.textBaseline="middle";
+  do {
+    g.font = (m.s==="pixel"?"bold ":"")+taille+"px "+police;
+    tr=g.measureText(m.t).width;
+    var lim = L*(m.s==="pixel"?0.94:0.86);
+    if(tr > lim) taille -= 2;
+  } while(tr > lim && taille > 10);
+
+  var x=L/2, y=H*0.54;
+  if(m.s==="pixel"){
+    // rendu en petit puis agrandi sans lissage : les bords deviennent carres
+    var p=document.createElement("canvas");
+    p.width=Math.round(L/6); p.height=Math.round(H/6);
+    var pg=p.getContext("2d");
+    pg.textAlign="center"; pg.textBaseline="middle";
+    pg.font="bold "+Math.round(taille/6)+"px "+police;
+    pg.fillStyle=m.b;
+    pg.fillText(m.t, p.width/2+1, p.height*0.54+1);
+    pg.fillStyle=m.f;
+    pg.fillText(m.t, p.width/2, p.height*0.54);
+    g.imageSmoothingEnabled=false;
+    g.drawImage(p,0,0,L,H);
+    return c;
+  }
+  g.lineJoin="round";
+  g.strokeStyle="rgba(0,0,0,.35)"; g.lineWidth=taille*0.30;
+  g.strokeText(m.t, x+taille*0.05, y+taille*0.06);      // ombre portee
+  g.strokeStyle=m.b; g.lineWidth=taille*0.26;
+  g.strokeText(m.t, x, y);
+  g.strokeStyle="#ffffff"; g.lineWidth=taille*0.11;
+  g.strokeText(m.t, x, y);
+  var grad=g.createLinearGradient(0, y-taille*0.5, 0, y+taille*0.5);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(.32, m.f);
+  grad.addColorStop(1, m.f);
+  g.fillStyle=grad;
+  g.fillText(m.t, x, y);
+  return c;
+}
+
+/* ---------- accessoires de visage ---------- */
+function trait(g,c,w){ g.strokeStyle=c; g.lineWidth=w; g.lineJoin="round"; g.lineCap="round"; }
+function contour(g,w){ g.strokeStyle="#14120f"; g.lineWidth=w; g.stroke(); }
+
+var VISAGES = [
+  { n:"Lunettes noires", d:function(g,T){
+      var w=T*0.40, h=T*0.26, y=T*0.5;
+      [[T*0.29,-1],[T*0.71,1]].forEach(function(p){
+        g.fillStyle="#14120f";
+        g.beginPath(); g.ellipse(p[0], y, w*0.44, h*0.5, 0,0,Math.PI*2); g.fill();
+        g.strokeStyle="#3a3a3a"; g.lineWidth=T*0.022; g.stroke();
+        var gr=g.createLinearGradient(p[0]-w*0.4, y-h*0.5, p[0]+w*0.2, y+h*0.3);
+        gr.addColorStop(0,"rgba(255,255,255,.35)"); gr.addColorStop(.5,"rgba(255,255,255,0)");
+        g.fillStyle=gr; g.beginPath(); g.ellipse(p[0], y, w*0.44, h*0.5, 0,0,Math.PI*2); g.fill();
+      });
+      trait(g,"#14120f",T*0.035);
+      g.beginPath(); g.moveTo(T*0.45,y-T*0.02); g.lineTo(T*0.55,y-T*0.02); g.stroke();
+      g.beginPath(); g.moveTo(T*0.11,y-T*0.06); g.lineTo(T*0.05,y-T*0.10); g.stroke();
+      g.beginPath(); g.moveTo(T*0.89,y-T*0.06); g.lineTo(T*0.95,y-T*0.10); g.stroke();
+    }},
+  { n:"Lunettes rondes", d:function(g,T){
+      var y=T*0.5, r=T*0.16;
+      [T*0.30,T*0.70].forEach(function(x){
+        g.fillStyle="rgba(190,225,240,.45)";
+        g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+        trait(g,"#c8a24a",T*0.032); g.stroke();
+      });
+      trait(g,"#c8a24a",T*0.030);
+      g.beginPath(); g.moveTo(T*0.46,y); g.lineTo(T*0.54,y); g.stroke();
+      g.beginPath(); g.moveTo(T*0.14,y-T*0.03); g.lineTo(T*0.05,y-T*0.09); g.stroke();
+      g.beginPath(); g.moveTo(T*0.86,y-T*0.03); g.lineTo(T*0.95,y-T*0.09); g.stroke();
+    }},
+  { n:"Lunettes 3D", d:function(g,T){
+      var y=T*0.5, w=T*0.30, h=T*0.22;
+      g.fillStyle="rgba(224,27,36,.72)"; g.fillRect(T*0.13,y-h/2,w,h);
+      g.fillStyle="rgba(0,183,228,.72)"; g.fillRect(T*0.57,y-h/2,w,h);
+      trait(g,"#14120f",T*0.03);
+      g.strokeRect(T*0.13,y-h/2,w,h); g.strokeRect(T*0.57,y-h/2,w,h);
+      g.beginPath(); g.moveTo(T*0.43,y); g.lineTo(T*0.57,y); g.stroke();
+    }},
+  { n:"Moustache", d:function(g,T){
+      g.fillStyle="#3a2416";
+      g.beginPath();
+      g.moveTo(T*0.5,T*0.44);
+      g.bezierCurveTo(T*0.34,T*0.36, T*0.10,T*0.40, T*0.08,T*0.56);
+      g.bezierCurveTo(T*0.22,T*0.66, T*0.40,T*0.60, T*0.5,T*0.52);
+      g.bezierCurveTo(T*0.60,T*0.60, T*0.78,T*0.66, T*0.92,T*0.56);
+      g.bezierCurveTo(T*0.90,T*0.40, T*0.66,T*0.36, T*0.5,T*0.44);
+      g.closePath(); g.fill(); contour(g,T*0.018);
+    }},
+  { n:"Moustache fine", d:function(g,T){
+      g.fillStyle="#14120f";
+      g.beginPath();
+      g.moveTo(T*0.5,T*0.46);
+      g.bezierCurveTo(T*0.38,T*0.42, T*0.26,T*0.44, T*0.24,T*0.52);
+      g.bezierCurveTo(T*0.34,T*0.54, T*0.44,T*0.52, T*0.5,T*0.50);
+      g.bezierCurveTo(T*0.56,T*0.52, T*0.66,T*0.54, T*0.76,T*0.52);
+      g.bezierCurveTo(T*0.74,T*0.44, T*0.62,T*0.42, T*0.5,T*0.46);
+      g.closePath(); g.fill();
+    }},
+  { n:"Barbe", d:function(g,T){
+      g.fillStyle="#4a2f1c";
+      g.beginPath();
+      g.moveTo(T*0.18,T*0.26);
+      g.bezierCurveTo(T*0.16,T*0.70, T*0.34,T*0.94, T*0.5,T*0.94);
+      g.bezierCurveTo(T*0.66,T*0.94, T*0.84,T*0.70, T*0.82,T*0.26);
+      g.bezierCurveTo(T*0.70,T*0.42, T*0.62,T*0.46, T*0.5,T*0.46);
+      g.bezierCurveTo(T*0.38,T*0.46, T*0.30,T*0.42, T*0.18,T*0.26);
+      g.closePath(); g.fill(); contour(g,T*0.016);
+      g.fillStyle="rgba(0,0,0,.18)";
+      g.beginPath(); g.ellipse(T*0.5,T*0.50,T*0.13,T*0.07,0,0,Math.PI*2); g.fill();
+    }},
+  { n:"Haut-de-forme", d:function(g,T){
+      g.fillStyle="#14120f";
+      g.fillRect(T*0.28,T*0.14,T*0.44,T*0.52);
+      g.beginPath(); g.ellipse(T*0.5,T*0.68,T*0.40,T*0.09,0,0,Math.PI*2); g.fill();
+      g.fillStyle="#e01b24"; g.fillRect(T*0.28,T*0.52,T*0.44,T*0.10);
+      contour(g,T*0.014);
+      g.fillStyle="rgba(255,255,255,.10)"; g.fillRect(T*0.32,T*0.16,T*0.06,T*0.34);
+    }},
+  { n:"Casquette", d:function(g,T){
+      g.fillStyle="#0055d4";                         // visiere d'un seul cote
+      g.beginPath();
+      g.moveTo(T*0.50,T*0.56);
+      g.quadraticCurveTo(T*0.80,T*0.54, T*0.94,T*0.66);
+      g.quadraticCurveTo(T*0.80,T*0.72, T*0.50,T*0.66);
+      g.closePath();
+      g.fillStyle="#003c96"; g.fill(); contour(g,T*0.014);
+      g.fillStyle="#0055d4";
+      g.beginPath(); g.arc(T*0.44,T*0.58,T*0.28,Math.PI,0); g.closePath(); g.fill();
+      g.fillRect(T*0.16,T*0.56,T*0.56,T*0.06);
+      contour(g,T*0.014);
+      g.fillStyle="#f5f3ee"; g.beginPath(); g.arc(T*0.44,T*0.32,T*0.04,0,Math.PI*2); g.fill();
+    }},
+  { n:"Couronne", d:function(g,T){
+      g.fillStyle="#ffd400";
+      g.beginPath();
+      g.moveTo(T*0.16,T*0.68); g.lineTo(T*0.16,T*0.30); g.lineTo(T*0.32,T*0.48);
+      g.lineTo(T*0.5,T*0.22);  g.lineTo(T*0.68,T*0.48); g.lineTo(T*0.84,T*0.30);
+      g.lineTo(T*0.84,T*0.68); g.closePath(); g.fill(); contour(g,T*0.02);
+      ["#e01b24","#00b7e4","#8cc63f"].forEach(function(col,i){
+        g.fillStyle=col;
+        g.beginPath(); g.arc(T*(0.30+i*0.20), T*0.60, T*0.035, 0, Math.PI*2); g.fill();
+      });
+    }},
+  { n:"Bonnet", d:function(g,T){
+      g.fillStyle="#e01b24";
+      g.beginPath(); g.arc(T*0.5,T*0.62,T*0.30,Math.PI,0); g.closePath(); g.fill();
+      g.fillStyle="#f5f3ee"; g.fillRect(T*0.18,T*0.58,T*0.64,T*0.14);
+      g.beginPath(); g.arc(T*0.5,T*0.28,T*0.08,0,Math.PI*2); g.fill();
+      contour(g,T*0.014);
+    }},
+  { n:"Beret", d:function(g,T){
+      g.fillStyle="#3b2a8c";
+      g.beginPath(); g.ellipse(T*0.5,T*0.54,T*0.34,T*0.22,0,0,Math.PI*2); g.fill();
+      g.fillStyle="#14120f"; g.fillRect(T*0.24,T*0.62,T*0.52,T*0.06);
+      g.fillStyle="#3b2a8c";
+      g.beginPath(); g.arc(T*0.62,T*0.32,T*0.045,0,Math.PI*2); g.fill();
+      contour(g,T*0.012);
+    }},
+  { n:"Casque", d:function(g,T){
+      g.fillStyle="#ffd400";
+      g.beginPath(); g.arc(T*0.5,T*0.60,T*0.28,Math.PI,0); g.closePath(); g.fill();
+      g.beginPath(); g.ellipse(T*0.5,T*0.62,T*0.42,T*0.08,0,0,Math.PI*2); g.fill();
+      g.fillStyle="rgba(0,0,0,.18)"; g.fillRect(T*0.46,T*0.34,T*0.08,T*0.26);
+      contour(g,T*0.014);
+    }},
+  { n:"Noeud papillon", d:function(g,T){
+      g.fillStyle="#e01b24";
+      g.beginPath();
+      g.moveTo(T*0.5,T*0.5); g.lineTo(T*0.16,T*0.32); g.lineTo(T*0.16,T*0.68); g.closePath(); g.fill();
+      g.beginPath();
+      g.moveTo(T*0.5,T*0.5); g.lineTo(T*0.84,T*0.32); g.lineTo(T*0.84,T*0.68); g.closePath(); g.fill();
+      g.fillStyle="#8e1319";
+      g.beginPath(); g.ellipse(T*0.5,T*0.5,T*0.06,T*0.09,0,0,Math.PI*2); g.fill();
+      contour(g,T*0.016);
+    }},
+  { n:"Nez de clown", d:function(g,T){
+      var gr=g.createRadialGradient(T*0.44,T*0.44,T*0.02,T*0.5,T*0.5,T*0.26);
+      gr.addColorStop(0,"#ff7a6e"); gr.addColorStop(1,"#d1200f");
+      g.fillStyle=gr; g.beginPath(); g.arc(T*0.5,T*0.5,T*0.26,0,Math.PI*2); g.fill();
+      g.fillStyle="rgba(255,255,255,.6)";
+      g.beginPath(); g.arc(T*0.41,T*0.41,T*0.055,0,Math.PI*2); g.fill();
+    }},
+  { n:"Oreilles de chat", d:function(g,T){
+      [[0.28,-1],[0.72,1]].forEach(function(p){
+        g.fillStyle="#3a3a3a";
+        g.beginPath();
+        g.moveTo(T*p[0],T*0.22); g.lineTo(T*(p[0]-0.14),T*0.72); g.lineTo(T*(p[0]+0.14),T*0.72);
+        g.closePath(); g.fill(); contour(g,T*0.016);
+        g.fillStyle="#ff9ec4";
+        g.beginPath();
+        g.moveTo(T*p[0],T*0.34); g.lineTo(T*(p[0]-0.08),T*0.66); g.lineTo(T*(p[0]+0.08),T*0.66);
+        g.closePath(); g.fill();
+      });
+    }},
+  { n:"Cornes", d:function(g,T){
+      g.fillStyle="#c0202a";
+      [[0.34,-1],[0.66,1]].forEach(function(p){    // pointes vers le haut et l'exterieur
+        var x=T*p[0], s=p[1];
+        g.beginPath();
+        g.moveTo(x-T*0.09*s, T*0.80);
+        g.quadraticCurveTo(x-T*0.02*s, T*0.44, x+T*0.20*s, T*0.20);
+        g.quadraticCurveTo(x+T*0.06*s, T*0.52, x+T*0.07*s, T*0.80);
+        g.closePath(); g.fill(); contour(g,T*0.016);
+      });
+    }},
+  { n:"Aureole", d:function(g,T){
+      g.strokeStyle="#ffd400"; g.lineWidth=T*0.07;
+      g.beginPath(); g.ellipse(T*0.5,T*0.5,T*0.32,T*0.12,0,0,Math.PI*2); g.stroke();
+      g.strokeStyle="rgba(255,255,255,.55)"; g.lineWidth=T*0.02;
+      g.beginPath(); g.ellipse(T*0.5,T*0.47,T*0.32,T*0.12,0,Math.PI*1.05,Math.PI*1.85); g.stroke();
+    }},
+  { n:"Cache-oeil", d:function(g,T){
+      trait(g,"#14120f",T*0.05);
+      g.beginPath(); g.moveTo(T*0.06,T*0.30); g.lineTo(T*0.94,T*0.40); g.stroke();
+      g.fillStyle="#14120f";
+      g.beginPath(); g.ellipse(T*0.5,T*0.55,T*0.22,T*0.18,0,0,Math.PI*2); g.fill();
+      g.fillStyle="rgba(255,255,255,.10)";
+      g.beginPath(); g.ellipse(T*0.44,T*0.49,T*0.07,T*0.05,0,0,Math.PI*2); g.fill();
+    }},
+  { n:"Cigare", d:function(g,T){
+      g.fillStyle="#7a4b2a"; g.fillRect(T*0.22,T*0.46,T*0.52,T*0.10);
+      g.fillStyle="#c9a06a"; g.fillRect(T*0.22,T*0.46,T*0.10,T*0.10);
+      g.fillStyle="#3a3a3a"; g.fillRect(T*0.72,T*0.46,T*0.06,T*0.10);
+      g.fillStyle="#ff6a00"; g.fillRect(T*0.76,T*0.47,T*0.04,T*0.08);
+      g.strokeStyle="rgba(240,240,240,.55)"; g.lineWidth=T*0.018;
+      g.beginPath();
+      g.moveTo(T*0.82,T*0.44);
+      g.quadraticCurveTo(T*0.90,T*0.34, T*0.84,T*0.24);
+      g.quadraticCurveTo(T*0.78,T*0.16, T*0.88,T*0.08);
+      g.stroke();
+      contour(g,T*0.012);
+    }},
+  { n:"Sourire", d:function(g,T){
+      g.fillStyle="#c0202a";
+      g.beginPath(); g.arc(T*0.5,T*0.44,T*0.32,0,Math.PI); g.closePath(); g.fill();
+      g.fillStyle="#f5f3ee";
+      g.fillRect(T*0.18,T*0.44,T*0.64,T*0.13);
+      g.strokeStyle="#c9c5b8"; g.lineWidth=T*0.012;
+      for(var i=1;i<6;i++){
+        g.beginPath(); g.moveTo(T*(0.18+i*0.1067),T*0.44); g.lineTo(T*(0.18+i*0.1067),T*0.57); g.stroke();
+      }
+      contour(g,T*0.014);
+    }}
+];
+
+function visageCanvas(v, T){
+  var c=document.createElement("canvas"); c.width=T; c.height=T;
+  var g=c.getContext("2d");
+  v.d(g,T);
+  return c;
+}
+
+return { MOTS:MOTS, VISAGES:VISAGES, motCanvas:motCanvas, visageCanvas:visageCanvas };
+})();
+</script>
 <script>
 (function(){
 "use strict";
@@ -192,8 +509,10 @@ function poser(o, actif){
     vg.textAlign="center"; vg.textBaseline="middle";
     vg.fillText(o.car||"?",0,0);
   } else if(o.im){
-    var m=Math.max(2,d.lp*0.035);
-    vg.fillStyle="#f6f4ec"; vg.fillRect(-d.lp/2-m,-d.hp/2-m,d.lp+m*2,d.hp+m*2);
+    if(!o.nue){
+      var m=Math.max(2,d.lp*0.035);
+      vg.fillStyle="#f6f4ec"; vg.fillRect(-d.lp/2-m,-d.hp/2-m,d.lp+m*2,d.hp+m*2);
+    }
     vg.drawImage(o.im,-d.lp/2,-d.hp/2,d.lp,d.hp);
   }
   if(actif){
@@ -205,6 +524,23 @@ function poser(o, actif){
   }
   vg.restore();
 }
+var listeConnue="";
+function majListe(){
+  var bande=document.getElementById("mesObjets");
+  var ids=Object.keys(objets).filter(function(i){ return miens[i]; });
+  var cle=ids.join(",")+"|"+choisi;
+  if(cle===listeConnue) return;
+  listeConnue=cle;
+  bande.innerHTML="";
+  bande.classList.toggle("on", ids.length>0);
+  ids.forEach(function(id){
+    var o=objets[id], b=document.createElement("button");
+    b.setAttribute("aria-current", id===choisi ? "true":"false");
+    if(o.im){ var i=new Image(); i.src=o.im.src; b.appendChild(i); }
+    b.addEventListener("click", function(){ choisi=id; rendre(); });
+    bande.appendChild(b);
+  });
+}
 function rendre(){
   vg.clearRect(0,0,vue.width,vue.height);
   if(fond) vg.drawImage(fond,0,0,vue.width,vue.height);
@@ -215,6 +551,7 @@ function rendre(){
   consigne.textContent = choisi ? "Un doigt pour déplacer · deux doigts pour agrandir et tourner"
                        : (n ? "Touche un de tes objets pour le reprendre" : "Envoie une photo ou une pastille");
   coller.disabled = !choisi; retirer.disabled = !choisi;
+  majListe();
 }
 
 /* ---------------- selection et manipulation ---------------- */
@@ -300,7 +637,7 @@ function chargerObjet(id, d){
     .then(function(r){ return r.ok?r.json():null; })
     .then(function(ob){
       if(!ob) return;
-      var o={ id:id, type:ob.type, car:ob.car, im:null, x:d.x, y:d.y, t:d.t, r:d.r };
+      var o={ id:id, type:ob.type, car:ob.car, nue:ob.nue, im:null, x:d.x, y:d.y, t:d.t, r:d.r };
       if(ob.type==="sticker"){ objets[id]=o; rendre(); return; }
       var im=new Image();
       im.onload=function(){ o.im=im; objets[id]=o; rendre(); };
@@ -382,23 +719,102 @@ champ.addEventListener("change", function(){
 });
 
 var EMOJIS=("😀 😎 🤩 🥳 😍 🤪 👽 🤖 👻 💀 👑 🔥 💥 ⚡ ✨ ⭐ 🌈 ☀️ 🌙 ☁️ 💧 🌊 🍀 🌸 🌵 🎨 🖌️ 🎧 🎸 🎤 📸 🎯 🏆 🎁 🎉 🎈 🍕 🍔 🍩 🍺 ❤️ 💜 💚 💙 🧡 ⚽ 🚀 🛹 🕶️ 🦄 🐱 🐶 🦋 🐝 🦖 ✌️ 👍 🤘 👊 💯 ❗ ❓ 💬").split(" ");
-EMOJIS.forEach(function(c){
-  var b=document.createElement("button");
-  b.textContent=c;
-  b.addEventListener("click", function(){
-    grille.classList.remove("on");
-    var o={ id:nouvelId(), type:"sticker", car:c, x:.5, y:.45, t:.12, r:0 };
+/* Le telephone dessine lui-meme la pastille et l'envoie comme image. Les
+   polices emoji couleur sont garanties sur mobile, pas sur le poste du mur :
+   en envoyant le caractere, certains glyphes y ressortaient en contour pale.
+   En envoyant un rendu, ce qu'on voit sur le telephone est ce qui s'affiche. */
+function pastilleEnImage(car){
+  var T=320, c=document.createElement("canvas");
+  c.width=T; c.height=T;
+  var g=c.getContext("2d");
+  g.font=Math.round(T*0.78)+"px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
+  g.textAlign="center"; g.textBaseline="middle";
+  g.fillText(car, T/2, T*0.54);
+  return c.toDataURL("image/png");
+}
+/* Envoi commun a toutes les pastilles : on transmet un rendu, jamais un
+   caractere ni un fichier — ce qui s'affiche ici s'affiche sur le mur. */
+function envoyerPastille(dURL, tailleDepart){
+  grille.classList.remove("on");
+  document.getElementById("onglets").style.display="none";
+  var im=new Image();
+  im.onload=function(){
+    var o={ id:nouvelId(), type:"photo", nue:1, im:im, x:.5, y:.45, t:tailleDepart, r:0 };
     msg("Envoi…");
-    deposer({ type:"sticker", car:c }, o)
+    deposer({ type:"photo", nue:1, img:dURL }, o)
       .then(function(){ msg("Place puis colle","ok"); })
       .catch(function(e){ msg("Échec : "+e.message,"ko"); delete objets[o.id]; choisi=null; rendre(); });
+  };
+  im.src=dURL;
+}
+function vignette(canvasSource){
+  var v=document.createElement("canvas");
+  var r=110/Math.max(canvasSource.width, canvasSource.height);
+  v.width=Math.round(canvasSource.width*r); v.height=Math.round(canvasSource.height*r);
+  v.getContext("2d").drawImage(canvasSource,0,0,v.width,v.height);
+  return v.toDataURL("image/png");
+}
+var ongletCourant="";
+function remplirGrille(nom){
+  if(ongletCourant===nom) return;
+  ongletCourant=nom;
+  grille.innerHTML="";
+  grille.classList.toggle("large", nom!=="emoji");
+  [].forEach.call(document.querySelectorAll("#onglets .btn"), function(b){
+    b.setAttribute("aria-current", b.dataset.onglet===nom ? "true":"false");
   });
-  grille.appendChild(b);
+  if(nom==="emoji"){
+    EMOJIS.forEach(function(c){
+      var b=document.createElement("button");
+      b.textContent=c;
+      b.addEventListener("click", function(){ envoyerPastille(pastilleEnImage(c), .14); });
+      grille.appendChild(b);
+    });
+  } else if(nom==="mot"){
+    PASTILLES.MOTS.forEach(function(m){
+      var b=document.createElement("button"), i=new Image();
+      i.src=vignette(PASTILLES.motCanvas(m, 300));
+      b.appendChild(i);
+      b.addEventListener("click", function(){
+        envoyerPastille(PASTILLES.motCanvas(m, 900).toDataURL("image/png"), .30);
+      });
+      grille.appendChild(b);
+    });
+  } else {
+    PASTILLES.VISAGES.forEach(function(v){
+      var b=document.createElement("button"), i=new Image();
+      i.src=vignette(PASTILLES.visageCanvas(v, 220));
+      b.appendChild(i);
+      b.addEventListener("click", function(){
+        envoyerPastille(PASTILLES.visageCanvas(v, 640).toDataURL("image/png"), .20);
+      });
+      grille.appendChild(b);
+    });
+  }
+}
+document.getElementById("onglets").addEventListener("click", function(e){
+  var b=e.target.closest ? e.target.closest("[data-onglet]") : null;
+  if(b) remplirGrille(b.dataset.onglet);
 });
-document.getElementById("ouvrirPastilles").addEventListener("click", function(){ grille.classList.toggle("on"); });
+document.getElementById("ouvrirPastilles").addEventListener("click", function(){
+  var ouvert=grille.classList.toggle("on");
+  document.getElementById("onglets").style.display = ouvert ? "flex" : "none";
+  if(ouvert && !ongletCourant) remplirGrille("emoji");
+});
 
+var confirmeColle=null;
 coller.addEventListener("click", function(){
   var o=objets[choisi]; if(!o) return;
+  if(confirmeColle!==o.id){                      // premier appui : on previent
+    confirmeColle=o.id;
+    coller.querySelector("span").textContent=" Confirmer — définitif";
+    msg("Une fois collé, l'objet ne se déplace plus","ko");
+    setTimeout(function(){
+      if(confirmeColle===o.id){ confirmeColle=null; coller.querySelector("span").textContent=" Coller sur le mur"; msg(""); }
+    }, 4000);
+    return;
+  }
+  confirmeColle=null; coller.querySelector("span").textContent=" Coller sur le mur";
   coller.disabled=true;
   fetch(RTDB+"/graffwall/envois/"+salle+"/pos/"+o.id+".json",{
     method:"PUT",
