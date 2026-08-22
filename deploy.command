@@ -47,6 +47,7 @@ recuperer() {   # $1 = nom cible, $2 = motif exact, $3 = motif versionne
 echo "Fichiers retenus :"
 recuperer "mur.html"   "mur.html"   "graffwall_v*.html"         || MANQUE=1
 recuperer "index.html" "index.html" "graffwall_galerie_v*.html" || MANQUE=1
+recuperer "photo.html" "photo.html" "graffwall_photo_v*.html"   || MANQUE=1
 if [ "${MANQUE:-0}" = "1" ]; then
   echo
   echo "Dossiers explores :"
@@ -60,16 +61,17 @@ rm -f "$DEPOT"/graffwall_*.html "$DEPOT"/.DS_Store
 # --- les deux versions doivent concorder ---
 VJEU=$(grep -o 'var VERSION = "v[0-9][0-9.]*"' mur.html | grep -o 'v[0-9][0-9.]*' | head -1)
 VGAL=$(grep -o 'GALERIE v[0-9][0-9.]*' index.html | grep -o 'v[0-9][0-9.]*' | head -1)
+VPHO=$(grep -o 'PHOTO v[0-9][0-9.]*' photo.html | grep -o 'v[0-9][0-9.]*' | head -1)
 
-if [ -z "$VJEU" ] || [ -z "$VGAL" ]; then
-  rouge "Version illisible (jeu='$VJEU' galerie='$VGAL')"; exit 1
+if [ -z "$VJEU" ] || [ -z "$VGAL" ] || [ -z "$VPHO" ]; then
+  rouge "Version illisible (jeu='$VJEU' galerie='$VGAL' photo='$VPHO')"; exit 1
 fi
-if [ "$VJEU" != "$VGAL" ]; then
-  rouge "VERSIONS DIFFERENTES — jeu $VJEU, galerie $VGAL"
-  echo "Le projet exporte toujours les deux ensemble. Rien n'a ete pousse."
+if [ "$VJEU" != "$VGAL" ] || [ "$VJEU" != "$VPHO" ]; then
+  rouge "VERSIONS DIFFERENTES — jeu $VJEU, galerie $VGAL, photo $VPHO"
+  echo "Le projet exporte toujours les trois ensemble. Rien n'a ete pousse."
   exit 1
 fi
-vert "version $VJEU (jeu et galerie)"
+vert "version $VJEU (jeu, galerie et page photo)"
 
 # --- y a-t-il quelque chose a envoyer ---
 if [ -z "$(git status --porcelain)" ]; then
@@ -79,7 +81,7 @@ fi
 git status --short
 
 git add -A || exit 1
-git commit -m "$VJEU jeu + galerie" || exit 1
+git commit -m "$VJEU jeu + galerie + photo" || exit 1
 if git push; then
   vert "En ligne : https://i-immersion.github.io/lumiia-graffwall/"
   echo "(GitHub Pages met une a deux minutes a se rafraichir)"

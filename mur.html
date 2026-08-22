@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v3.7 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v4.2 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v3.7</title>
+<title>LUMIIA Mur de Graff — v4.2</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -84,7 +84,7 @@
     display:block;width:32px;height:32px;border-radius:50%;
     border:3px solid rgba(0,0,0,.4);box-shadow:0 0 0 2px rgba(242,240,230,.45);
   }
-  #couleurs{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:73px;gap:7px}
+  #couleurs{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:67px;gap:7px}
   .col{
     border:0;border-radius:5px;position:relative;cursor:pointer;
     box-shadow:inset 0 -14px 20px rgba(0,0,0,.34), 0 2px 0 rgba(0,0,0,.6);
@@ -111,7 +111,23 @@
   #poignee svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
   #poignee.ferme{transform:rotate(180deg)}
   #outils{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
-  #tailles{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:51px;gap:7px}
+  /* curseur de calibre : un coin qui s'epaissit vers les gros traits */
+  #curseur{position:relative;width:231px;height:62px;cursor:pointer;touch-action:none}
+  #coin{
+    position:absolute;left:0;top:0;width:100%;height:100%;
+    background:rgba(242,240,230,.10);
+    -webkit-clip-path:polygon(0 46%, 100% 4%, 100% 96%, 0 54%);
+    clip-path:polygon(0 46%, 100% 4%, 100% 96%, 0 54%);
+  }
+  #coinActif{position:absolute;left:0;top:0;height:100%;width:22px;background:var(--acid);opacity:.85}
+  #poigneeCal{
+    position:absolute;top:50%;left:0;width:44px;height:44px;margin-top:-22px;
+    border-radius:50%;background:var(--trace);border:3px solid #16150f;
+    box-shadow:0 3px 10px rgba(0,0,0,.6);
+    display:flex;align-items:center;justify-content:center;pointer-events:none;
+  }
+  #poigneeCal i{display:block;border-radius:50%;background:#16150f;width:8px;height:8px}
+  .titre b{color:var(--acid);font-size:13px;letter-spacing:.06em;margin-left:6px}
   #actions{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
   #support{display:grid;grid-template-columns:repeat(2,112px);grid-auto-rows:57px;gap:7px}
 
@@ -129,6 +145,10 @@
   .btn:active{background:#3d382d}
   .pastille{display:block;border-radius:50%;background:var(--trace)}
   .btn[aria-checked="true"] .pastille{background:#16150f}
+  .paire{display:flex;gap:5px}
+  .demi{flex:1;min-width:0;padding:0}
+  .demi svg{width:30px;height:30px}
+  .demi[aria-disabled="true"]{opacity:.28}
   #effacer{position:relative;overflow:hidden;border-color:rgba(209,68,31,.55)}
   #jauge{
     position:absolute;left:0;bottom:0;width:0;height:100%;
@@ -155,6 +175,26 @@
     border-left:16px solid var(--acid);
   }
 
+  /* invitation a envoyer une photo */
+  #photoPan{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:35;
+    background:rgba(18,17,12,.97);border:3px solid var(--acid);border-radius:16px;
+    padding:26px 30px 24px;box-shadow:0 18px 60px rgba(0,0,0,.75);
+    display:flex;flex-direction:column;align-items:center;gap:14px;
+  }
+  #photoPan[hidden]{display:none}
+  #photoPan h2{
+    font-family:Impact,Haettenschweiler,"Arial Narrow",sans-serif;font-weight:400;
+    font-size:30px;text-transform:uppercase;transform:skewX(-7deg);letter-spacing:.01em;
+  }
+  #photoPan p{font-size:15px;color:rgba(242,240,230,.6);max-width:340px;text-align:center;line-height:1.5}
+  #qr{background:#fff;padding:12px;border-radius:10px;display:block}
+  #salleCode{
+    font:800 26px/1 ui-monospace,Menlo,monospace;letter-spacing:.28em;
+    color:var(--acid);padding-left:.28em;
+  }
+  #photoPan .btn{width:190px;height:58px;flex-direction:row;gap:9px}
+
   /* toast */
   #toast{
     position:absolute;left:50%;bottom:34px;transform:translateX(-50%);z-index:25;
@@ -179,7 +219,7 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v3.7</i>
+    <i>v4.2</i>
   </div>
 
   <aside class="panneau" id="droite">
@@ -192,16 +232,23 @@
       <div id="outils" role="radiogroup"></div>
     </div>
     <div class="bloc">
-      <div class="titre">Calibre</div>
-      <div id="tailles" role="radiogroup"></div>
+      <div class="titre">Calibre <b id="calVal">15</b></div>
+      <div id="curseur">
+        <div id="coin"><div id="coinActif"></div></div>
+        <div id="poigneeCal"><i></i></div>
+      </div>
     </div>
     <div class="bloc">
       <div class="titre">Actions</div>
       <div id="actions">
-        <button class="btn" id="annuler">
-          <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10H8"/></svg>
-          <span>Annuler</span>
-        </button>
+        <div class="paire">
+          <button class="btn demi" id="annuler" aria-label="Annuler">
+            <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10H8"/></svg>
+          </button>
+          <button class="btn demi" id="refaire" aria-label="Refaire">
+            <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h7"/></svg>
+          </button>
+        </div>
         <button class="btn" id="effacer">
           <div id="jauge"></div>
           <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>
@@ -224,6 +271,10 @@
           <svg viewBox="0 0 24 24"><path d="M3 5h18v14H3z"/><path d="M3 12h18"/><path d="M9 5v7"/><path d="M15 12v7"/></svg>
           <span>Mur</span>
         </button>
+        <button class="btn" id="photo">
+          <svg viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v12H3z"/><circle cx="12" cy="13" r="3.6"/></svg>
+          <span>Photo</span>
+        </button>
         <button class="btn" id="coloriage">
           <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.7 0 2-1.2 1.3-2-.8-1 .1-2 1.2-2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="11" cy="7.5" r="1.2"/><circle cx="15.5" cy="8.5" r="1.2"/></svg>
           <span>Coloriage</span>
@@ -240,6 +291,16 @@
    </div>
   </aside>
 
+  <div id="photoPan" hidden>
+    <h2>Envoie ta photo</h2>
+    <canvas id="qr" width="264" height="264"></canvas>
+    <p>Scanne ce code avec ton téléphone. La photo apparaîtra sur le mur.</p>
+    <div id="salleCode"></div>
+    <button class="btn" id="photoFermer">
+      <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Fermer</span>
+    </button>
+  </div>
+
   <div id="menu" hidden>
     <div class="titre" id="menuTitre"></div>
     <div id="menuBtns"></div>
@@ -249,9 +310,193 @@
 </div>
 
 <script>
+/* Generateur de QR code minimal — mode octet, correction L, versions 1 a 6
+   (jusqu'a 134 caracteres). Ecrit a la main pour que le jeu reste autonome.
+   Les versions 7 et plus exigent un bloc d'information de version qui n'est
+   pas implemente ici : au-dela de 134 caracteres, une erreur est levee plutot
+   que de produire un code illisible. Matrices verifiees une a une contre la
+   bibliotheque de reference. */
+var QR = (function(){
+"use strict";
+
+// capacite utile en caracteres (mode octet, correction L)
+var CAPCAR = [0,17,32,53,78,106,134,154,192,230,271];
+// nombre de mots de DONNEES — different de la capacite en caracteres :
+// l'en-tete (mode + longueur) consomme 12 bits sur le premier mot
+var CAP    = [0,19,34,55,80,108,136,156,194,232,274];
+// nombre de mots de correction par bloc et nombre de blocs (correction L)
+var ECC  = [0,7,10,15,20,26,18,20,24,30,18];
+var BLOCS= [0,1,1,1,1,1,2,2,2,2,4];
+// positions des motifs d'alignement
+var ALIGN= [[],[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
+
+/* ---- arithmetique du corps de Galois GF(256) ---- */
+var EXP=new Array(512), LOG=new Array(256);
+(function(){
+  var x=1;
+  for(var i=0;i<255;i++){
+    EXP[i]=x; LOG[x]=i;
+    x<<=1; if(x&0x100) x^=0x11d;
+  }
+  for(i=255;i<512;i++) EXP[i]=EXP[i-255];
+})();
+function mul(a,b){ return (a===0||b===0) ? 0 : EXP[LOG[a]+LOG[b]]; }
+
+function polyGenerateur(n){
+  var g=[1], i, j;
+  for(i=0;i<n;i++){
+    var nv=new Array(g.length+1).fill(0);
+    for(j=0;j<g.length;j++){
+      nv[j] ^= mul(g[j], 1);
+      nv[j+1] ^= mul(g[j], EXP[i]);
+    }
+    g=nv;
+  }
+  return g;
+}
+function correction(donnees, n){
+  var g=polyGenerateur(n), reste=donnees.concat(new Array(n).fill(0)), i, j;
+  for(i=0;i<donnees.length;i++){
+    var f=reste[i];
+    if(f!==0) for(j=0;j<g.length;j++) reste[i+j] ^= mul(g[j], f);
+  }
+  return reste.slice(donnees.length);
+}
+
+/* ---- construction du flux binaire ---- */
+function bits(texte){
+  var octets=[], i, c;
+  for(i=0;i<texte.length;i++){
+    c=texte.charCodeAt(i);
+    if(c<128) octets.push(c);
+    else if(c<2048){ octets.push(192|(c>>6), 128|(c&63)); }
+    else { octets.push(224|(c>>12), 128|((c>>6)&63), 128|(c&63)); }
+  }
+  return octets;
+}
+function version(n){
+  for(var v=1;v<=6;v++) if(CAPCAR[v]>=n) return v;
+  return 0;
+}
+
+function encoder(texte){
+  var octets=bits(texte), v=version(octets.length);
+  if(!v) throw new Error("texte trop long (134 caracteres maximum)");
+
+  var flux=[], i;
+  function ecrire(val, n){ for(var k=n-1;k>=0;k--) flux.push((val>>k)&1); }
+
+  ecrire(4,4);                                   // mode octet
+  ecrire(octets.length, v<10 ? 8 : 16);
+  for(i=0;i<octets.length;i++) ecrire(octets[i],8);
+
+  var capaBits = CAP[v]*8;
+  for(i=0;i<4 && flux.length<capaBits;i++) flux.push(0);   // terminateur
+  while(flux.length%8) flux.push(0);
+  var mots=[];
+  for(i=0;i<flux.length;i+=8){
+    var o=0; for(var k=0;k<8;k++) o=(o<<1)|flux[i+k];
+    mots.push(o);
+  }
+  var bourrage=[0xEC,0x11], b=0;
+  while(mots.length<CAP[v]) mots.push(bourrage[(b++)%2]);
+
+  // decoupage en blocs, puis entrelacement
+  var nb=BLOCS[v], base=Math.floor(CAP[v]/nb), reste=CAP[v]%nb;
+  var blocs=[], eccs=[], pos=0;
+  for(i=0;i<nb;i++){
+    var taille=base+(i>=nb-reste?1:0);
+    var d=mots.slice(pos,pos+taille); pos+=taille;
+    blocs.push(d); eccs.push(correction(d, ECC[v]));
+  }
+  var sortie=[], maxD=0;
+  for(i=0;i<nb;i++) if(blocs[i].length>maxD) maxD=blocs[i].length;
+  for(i=0;i<maxD;i++) for(var j=0;j<nb;j++) if(i<blocs[j].length) sortie.push(blocs[j][i]);
+  for(i=0;i<ECC[v];i++) for(j=0;j<nb;j++) sortie.push(eccs[j][i]);
+  return { version:v, mots:sortie };
+}
+
+/* ---- placement dans la matrice ---- */
+function matrice(texte){
+  var e=encoder(texte), v=e.version, n=v*4+17;
+  var m=[], reserve=[], i, j;
+  for(i=0;i<n;i++){ m.push(new Array(n).fill(0)); reserve.push(new Array(n).fill(0)); }
+
+  function poser(x,y,val){ if(x>=0&&y>=0&&x<n&&y<n){ m[y][x]=val?1:0; reserve[y][x]=1; } }
+  function reperage(cx,cy){
+    for(var dy=-1;dy<=7;dy++) for(var dx=-1;dx<=7;dx++){
+      var x=cx+dx, y=cy+dy;
+      if(x<0||y<0||x>=n||y>=n) continue;
+      var d=Math.max(Math.abs(dx-3),Math.abs(dy-3));
+      poser(x,y, (d===2||d>3) ? 0 : 1);
+    }
+  }
+  reperage(0,0); reperage(n-7,0); reperage(0,n-7);
+
+  for(i=8;i<n-8;i++){                                  // lignes de synchronisation
+    poser(i,6, i%2===0); poser(6,i, i%2===0);
+  }
+  var al=ALIGN[v];
+  for(i=0;i<al.length;i++) for(j=0;j<al.length;j++){
+    var ax=al[i], ay=al[j];
+    if((ax<8&&ay<8)||(ax<8&&ay>n-9)||(ax>n-9&&ay<8)) continue;
+    for(var dy=-2;dy<=2;dy++) for(var dx=-2;dx<=2;dx++){
+      var d=Math.max(Math.abs(dx),Math.abs(dy));
+      poser(ax+dx, ay+dy, d!==1);
+    }
+  }
+  poser(8, n-8, 1);                                    // module toujours noir
+
+  for(i=0;i<9;i++){                                    // zones reservees au format
+    if(i!==6){ reserve[8][i]=1; reserve[i][8]=1; }
+  }
+  for(i=0;i<8;i++){ reserve[8][n-1-i]=1; reserve[n-1-i][8]=1; }
+
+  // remplissage en zigzag depuis le coin bas droit
+  var mots=e.mots, bit=0, montant=true, col;
+  function prochain(){
+    var o=mots[bit>>3];
+    var b=(o===undefined) ? 0 : (o>>(7-(bit&7)))&1;
+    bit++; return b;
+  }
+  for(col=n-1; col>0; col-=2){
+    if(col===6) col--;
+    for(var pas=0; pas<n; pas++){
+      var y = montant ? (n-1-pas) : pas;
+      for(var c=0;c<2;c++){
+        var x=col-c;
+        if(reserve[y][x]) continue;
+        var val=prochain();
+        if(((y+x)%2)===0) val^=1;                      // masque 0
+        m[y][x]=val;
+      }
+    }
+    montant=!montant;
+  }
+
+  // information de format : correction L (01) + masque 0
+  var fmt=(1<<3)|0, d=fmt<<10, g=0x537;
+  for(i=4;i>=0;i--) if(d&(1<<(i+10))) d^=g<<i;
+  var bitsFmt=((fmt<<10)|d)^0x5412;
+  for(i=0;i<15;i++){
+    var b2=(bitsFmt>>i)&1;
+    if(i<6) m[i][8]=b2;
+    else if(i<8) m[i+1][8]=b2;
+    else if(i===8) m[8][7]=b2;
+    else m[8][14-i]=b2;
+    if(i<8) m[8][n-1-i]=b2;
+    else m[n-15+i][8]=b2;
+  }
+  return m;
+}
+
+return { matrice: matrice };
+})();
+</script>
+<script>
 (function(){
 "use strict";
-var VERSION = "v3.7";
+var VERSION = "v4.2";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -1128,21 +1373,58 @@ function ouvrirMenu(btn, type){
   menuFleche.style.top=((rb.top+rb.height/2-t)/ECHD - 13)+"px";
 }
 
-/* ================= calibres ================= */
-var TAILLES = [ {n:"S",v:7}, {n:"M",v:15}, {n:"L",v:31}, {n:"XL",v:55} ];
-var bt = document.getElementById("tailles");
-TAILLES.forEach(function(t){
-  var d = Math.min(31, 9 + t.v*0.42);   // apercu : etagement visuel des calibres
-  var b=document.createElement("button");
-  b.className="btn"; b.setAttribute("role","radio");
-  b.setAttribute("aria-checked", t.v===etat.taille ? "true":"false");
-  b.innerHTML='<i class="pastille" style="width:'+d+'px;height:'+d+'px"></i><span>'+t.n+'</span>';
-  b.addEventListener("pointerdown", function(){
-    [].forEach.call(bt.children,function(e){e.setAttribute("aria-checked","false");});
-    b.setAttribute("aria-checked","true"); etat.taille=t.v; clac();
+/* ================= calibre : curseur continu =================
+   L'echelle n'est pas lineaire : une puissance donne du doigte dans les
+   petits calibres, la ou un pixel compte, et laisse filer les gros. */
+var CAL_MIN=3, CAL_MAX=92, CAL_COURBE=1.9;
+var CUR_L=231, CUR_P=44, CUR_UTILE=CUR_L-CUR_P;
+var curseur=null, coinActif=null, poigneeCal=null, calVal=null;
+
+function calDepuisT(t){ return Math.round(CAL_MIN + (CAL_MAX-CAL_MIN)*Math.pow(t,CAL_COURBE)); }
+function tDepuisCal(v){
+  var t=(v-CAL_MIN)/(CAL_MAX-CAL_MIN);
+  return Math.pow(Math.max(0,Math.min(1,t)), 1/CAL_COURBE);
+}
+function majCurseur(){
+  if(!curseur) return;
+  var t=tDepuisCal(etat.taille), x=Math.round(t*CUR_UTILE);
+  poigneeCal.style.left = x+"px";
+  coinActif.style.width = (x+CUR_P/2)+"px";
+  var d = Math.max(6, Math.min(26, 6+etat.taille*0.26));
+  poigneeCal.firstChild.style.width = d+"px";
+  poigneeCal.firstChild.style.height = d+"px";
+  calVal.textContent = etat.taille;
+}
+function reglerCurseur(e){
+  var r=curseur.getBoundingClientRect();
+  if(!r.width) return;
+  var ech=r.width/CUR_L;                       // le panneau est mis a l'echelle
+  var x=(e.clientX-r.left)/ech - CUR_P/2;
+  var t=Math.max(0, Math.min(1, x/CUR_UTILE));
+  var v=calDepuisT(t);
+  if(v!==etat.taille){ etat.taille=v; majCurseur(); }
+}
+function brancherCurseur(){
+  curseur=document.getElementById("curseur");
+  coinActif=document.getElementById("coinActif");
+  poigneeCal=document.getElementById("poigneeCal");
+  calVal=document.getElementById("calVal");
+  var actif=false;
+  curseur.addEventListener("pointerdown", function(e){
+    e.stopPropagation(); actif=true;
+    curseur.setPointerCapture && curseur.setPointerCapture(e.pointerId);
+    fermerMenu(); fermerCouleurs();
+    reglerCurseur(e);
   });
-  bt.appendChild(b);
-});
+  curseur.addEventListener("pointermove", function(e){
+    if(!actif) return;
+    e.stopPropagation(); reglerCurseur(e);
+  });
+  function fini(e){ if(actif){ actif=false; clac(); } }
+  curseur.addEventListener("pointerup", fini);
+  curseur.addEventListener("pointercancel", fini);
+  majCurseur();
+}
 
 /* ================= son ================= */
 var AC=null, bruit=null, gainSpray=null, passeHaut=null, passeBas=null, pointe=null;
@@ -1425,7 +1707,9 @@ var coulures=[], boucle=null, tPrec=0;
 function reveiller(){ if(!boucle){ tPrec=0; boucle=requestAnimationFrame(pulse); } }
 function ajouterCoulure(x,y,r,c){
   if(coloriage || coulures.length>44) return;
-  coulures.push({ x:x+alea(-r*.28,r*.28), y:y+r*.35, w:alea(r*.10,r*.20), v:alea(.2,.7), c:c });
+  coulures.push({ x:x+alea(-r*.26,r*.26), y:y+r*.35,
+                  w:Math.max(2.6, alea(r*.16,r*.34)), v:alea(.2,.7), c:c });
+  marquer(x-r*1.6, y, x+r*1.6, H);      // la trainee ira jusqu'en bas
   reveiller();
 }
 function pulse(ts){
@@ -1457,11 +1741,11 @@ function pulse(ts){
     mult = 1 + Math.min(1.35, t.stat/1000);
     poser(t, t.x, t.y, 0, mult, dt/16*0.5);
     if(etat.outil!=="gomme" && etat.outil!=="fx"){
-      t.jus += dt * (etat.outil==="fatcap" ? 2.4 : 1.4) * (0.6 + calibre()/70);
-      seuil = 900;
+      t.jus += dt * (etat.outil==="fatcap" ? 0.75 : 0.38) * (0.75 + calibre()/45);
+      seuil = 620;
       if(t.jus>seuil){
         ajouterCoulure(t.x, t.y + calibre()*mult*0.45, calibre()*mult, t.c);
-        t.jus = 380;
+        t.jus = 240;
       }
     }
   }
@@ -1470,18 +1754,164 @@ function pulse(ts){
 }
 
 /* ================= historique ================= */
-var histo=[], MAXH=10;
-function memoriser(){
+/* Historique : on ne photographie plus tout l'ecran a chaque geste (8 Mo la
+   copie, dix niveaux maximum). On garde seulement le rectangle reellement
+   repeint par le trait — quelques centaines de Ko — ce qui permet des dizaines
+   d'annulations pour la meme memoire. Un plafond global purge les plus vieilles. */
+var histo=[], MAXH=80, MAXO=140*1024*1024, poids=0;
+var pileRefaire=[];
+var avant=document.createElement("canvas"), av=avant.getContext("2d");
+var zoneModif=null;
+
+function memoriser(){                 // debut d'un geste : on photographie l'etat courant
+  if(avant.width!==W || avant.height!==H){ avant.width=W; avant.height=H; }
+  av.clearRect(0,0,W,H); av.drawImage(cv,0,0);
+  zoneModif=null;
+}
+function marquer(x0,y0,x1,y1){        // etend la zone touchee par le geste
+  if(!zoneModif){ zoneModif={x0:x0,y0:y0,x1:x1,y1:y1}; return; }
+  if(x0<zoneModif.x0) zoneModif.x0=x0;
+  if(y0<zoneModif.y0) zoneModif.y0=y0;
+  if(x1>zoneModif.x1) zoneModif.x1=x1;
+  if(y1>zoneModif.y1) zoneModif.y1=y1;
+}
+function ranger(entree){
+  pileRefaire.length=0; majRetours();          // un nouveau geste ferme la voie du retour
+  histo.push(entree); poids += entree.w*entree.h*4;
+  while(histo.length>MAXH || (poids>MAXO && histo.length>4)){
+    var v=histo.shift(); poids -= v.w*v.h*4;
+  }
+}
+function clore(){                     // fin du geste : on range la zone repeinte
+  if(!zoneModif || !avant.width) { zoneModif=null; return; }
+  var m=10;
+  var x=Math.max(0, Math.floor(zoneModif.x0-m)), y=Math.max(0, Math.floor(zoneModif.y0-m));
+  var w=Math.min(W, Math.ceil(zoneModif.x1+m))-x, h=Math.min(H, Math.ceil(zoneModif.y1+m))-y;
+  zoneModif=null;
+  if(w<=0 || h<=0) return;
+  var c=document.createElement("canvas"); c.width=w; c.height=h;
+  c.getContext("2d").drawImage(avant, x,y,w,h, 0,0,w,h);
+  ranger({ c:c, x:x, y:y, w:w, h:h });
+}
+function memoriserTout(){             // pour les actions qui touchent tout l'ecran
   var c=document.createElement("canvas"); c.width=W; c.height=H;
   c.getContext("2d").drawImage(cv,0,0);
-  histo.push(c); if(histo.length>MAXH) histo.shift();
+  ranger({ c:c, x:0, y:0, w:W, h:H });
+}
+/* Annuler / refaire : on echange la region entre deux piles. Avant de
+   restaurer une zone, on photographie ce qu'elle contient pour pouvoir
+   revenir en avant — sans quoi refaire n'aurait rien a reposer. */
+function photoZone(e){
+  var c=document.createElement("canvas"); c.width=e.w; c.height=e.h;
+  c.getContext("2d").drawImage(cv, e.x,e.y,e.w,e.h, 0,0,e.w,e.h);
+  return { c:c, x:e.x, y:e.y, w:e.w, h:e.h };
+}
+function poser_zone(e){
+  ctx.clearRect(e.x, e.y, e.w, e.h);
+  ctx.drawImage(e.c, e.x, e.y);
+}
+function majRetours(){
+  var a=document.getElementById("annuler"), r=document.getElementById("refaire");
+  if(a) a.setAttribute("aria-disabled", histo.length ? "false":"true");
+  if(r) r.setAttribute("aria-disabled", pileRefaire.length ? "false":"true");
 }
 function annuler(){
-  var c=histo.pop();
-  if(!c){ toast("Rien à annuler"); return; }
+  var e=histo.pop();
+  if(!e){ toast("Rien à annuler"); return; }
+  poids -= e.w*e.h*4;
   coulures.length=0;
-  ctx.clearRect(0,0,W,H); ctx.drawImage(c,0,0);
+  pileRefaire.push(photoZone(e));
+  if(pileRefaire.length>MAXH) pileRefaire.shift();
+  poser_zone(e);
+  majRetours();
 }
+function refaireGeste(){
+  var e=pileRefaire.pop();
+  if(!e){ toast("Rien à refaire"); return; }
+  coulures.length=0;
+  histo.push(photoZone(e)); poids += e.w*e.h*4;
+  poser_zone(e);
+  majRetours();
+}
+
+/* ================= PHOTOS ENVOYEES DEPUIS UN TELEPHONE =================
+   Un code de salle est tire au lancement. Le telephone depose sa photo dans
+   /graffwall/envois/<salle> sous forme d'image encodee en texte : elle passe
+   par la base et non par le stockage, ce qui evite de contaminer le canvas
+   (une image d'un autre domaine rendrait l'enregistrement impossible).
+   Le mur interroge la base toutes les trois secondes, colle ce qu'il trouve,
+   puis efface l'envoi. ================================================== */
+var BASE_PHOTO = "https://i-immersion.github.io/lumiia-graffwall/photo.html";
+var salle = (function(){
+  var lettres="ACDEFHJKLMNPRTUVWXY349", s="";
+  for(var i=0;i<4;i++) s+=lettres.charAt(Math.random()*lettres.length|0);
+  return s;
+})();
+var photoPan=null, ecoute=null, vus={};
+
+function dessinerQR(cible, texte){
+  var m, g=cible.getContext("2d");
+  try{ m=QR.matrice(texte); }catch(e){ return false; }
+  var n=m.length, taille=cible.width, mod=Math.floor(taille/(n+2)), dec=Math.floor((taille-mod*n)/2);
+  g.fillStyle="#fff"; g.fillRect(0,0,taille,taille);
+  g.fillStyle="#111";
+  for(var y=0;y<n;y++) for(var x=0;x<n;x++)
+    if(m[y][x]) g.fillRect(dec+x*mod, dec+y*mod, mod, mod);
+  return true;
+}
+
+/* Colle la photo comme une affiche : legere inclinaison, marge blanche, ombre. */
+function collerPhoto(img){
+  var lp = W*0.30, r = img.height/img.width, hp = lp*r;
+  if(hp > H*0.52){ hp = H*0.52; lp = hp/r; }
+  var marge = Math.max(6, lp*0.035);
+  var x = alea(W*0.14, W*0.86-lp), y = alea(H*0.12, H*0.72-hp);
+  var ang = alea(-0.09, 0.09);
+
+  memoriser();
+  var d = Math.hypot(lp,hp)*0.6 + marge*2;
+  marquer(x+lp/2-d, y+hp/2-d, x+lp/2+d, y+hp/2+d);
+
+  ctx.save();
+  ctx.translate(x+lp/2, y+hp/2); ctx.rotate(ang);
+  ctx.fillStyle="rgba(0,0,0,.45)";
+  ctx.fillRect(-lp/2-marge+8, -hp/2-marge+10, lp+marge*2, hp+marge*2);
+  ctx.fillStyle="#f6f4ec";
+  ctx.fillRect(-lp/2-marge, -hp/2-marge, lp+marge*2, hp+marge*2);
+  ctx.drawImage(img, -lp/2, -hp/2, lp, hp);
+  ctx.strokeStyle="rgba(0,0,0,.22)"; ctx.lineWidth=2;
+  ctx.strokeRect(-lp/2, -hp/2, lp, hp);
+  ctx.restore();
+  clore();
+  toast("Photo reçue");
+  clac();
+}
+
+function releverEnvois(){
+  fetch(RTDB+"/graffwall/envois/"+salle+".json")
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(o){
+      if(!o) return;
+      Object.keys(o).forEach(function(id){
+        if(vus[id] || !o[id] || !o[id].img) return;
+        vus[id]=1;
+        var img=new Image();
+        img.onload=function(){ collerPhoto(img); };
+        img.src=o[id].img;                       // image en texte : pas de contamination
+        fetch(RTDB+"/graffwall/envois/"+salle+"/"+id+".json",{method:"DELETE"}).catch(function(){});
+      });
+    })
+    .catch(function(){});
+}
+function ouvrirPhoto(){
+  fermerMenu(); fermerCouleurs();
+  var url = BASE_PHOTO+"?s="+salle;
+  if(!dessinerQR(document.getElementById("qr"), url)) toast("QR indisponible");
+  document.getElementById("salleCode").textContent = salle;
+  photoPan.hidden=false;
+  if(!ecoute){ releverEnvois(); ecoute=setInterval(releverEnvois, 3000); }
+}
+function fermerPhoto(){ photoPan.hidden=true; }
 
 /* ================= mesure (touche D) =================
    Compte ce qui arrive vraiment du capteur ou de la souris. Un trait pale
@@ -1537,6 +1967,7 @@ function poser(t,x,y,vitesse,mult,dens){
 }
 function poserBrut(t,x,y,vitesse,mult,dens){
   var r=calibre()*(mult||1), c=t.c, k=(dens===undefined?1:dens);
+  var e=r*2.2; marquer(x-e, y-e, x+e, y+e);
   switch(etat.outil){
     case "bombe":   bombe(x,y,r,c, k*Math.max(.35, 1-vitesse/34)); break;
     case "fatcap":  bombe(x,y,r*1.85,c, k*Math.max(.4, 1.25-vitesse/30)); break;
@@ -1557,7 +1988,7 @@ function debut(e){
     zoneActive = calculerMasque(p.x, p.y);
     if(!zoneActive) return;                     // trait noir : rien ne s'y depose
     if(etat.outil==="seau"){
-      remplirZone(hex2rgb(etat.hex)); clac(); return;
+      memoriserTout(); remplirZone(hex2rgb(etat.hex)); clac(); return;
     }
   } else if(etat.outil==="seau"){
     toast("Le seau ne marche qu'en coloriage"); return;
@@ -1594,7 +2025,7 @@ function bouger(e){
 }
 function fin(e){
   delete traces[e.pointerId];
-  if(!Object.keys(traces).length){ zoneActive=false; spraySon(false,0); }
+  if(!Object.keys(traces).length){ zoneActive=false; spraySon(false,0); clore(); }
   if(!souffleLance) amorcerAudio();
 }
 
@@ -1611,7 +2042,8 @@ function toast(m){
   toastEl.textContent=m; toastEl.classList.add("on");
   clearTimeout(toastT); toastT=setTimeout(function(){ toastEl.classList.remove("on"); },1600);
 }
-document.getElementById("annuler").addEventListener("pointerdown", function(){ annuler(); clac(); });
+document.getElementById("annuler").addEventListener("pointerdown", function(ev){ ev.stopPropagation(); annuler(); clac(); });
+document.getElementById("refaire").addEventListener("pointerdown", function(ev){ ev.stopPropagation(); refaireGeste(); clac(); });
 
 /* --- ENREGISTREMENT ---------------------------------------------------
    L'image part sur Firebase Storage (projet lumiia-live, prefixe graffwall/),
@@ -1771,7 +2203,7 @@ function effTic(){
   jauge.style.width=(p*100)+"%";
   if(p>=1){
     effRaz();
-    memoriser(); coulures.length=0; ctx.clearRect(0,0,W,H);
+    memoriserTout(); coulures.length=0; ctx.clearRect(0,0,W,H);
     toast(coloriage?"Dessin remis à zéro":"Mur nettoyé"); clac();
   }
 }
@@ -1827,6 +2259,7 @@ document.addEventListener("keydown", function(e){
   var k=e.key.toLowerCase();
   if(k==="f") pleinEcran();
   if(k==="z") annuler();
+  if(k==="y") refaireGeste();
   if(k==="s") enregistrer();
   if(k==="d"){ diag.actif=!diag.actif; jauge.hidden=!diag.actif; }
   if(k==="t") basculerRepli();
@@ -1886,7 +2319,7 @@ function ajuster(){
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   if(tampon) ctx.drawImage(tampon, 0,0,ancienW,ancienH, 0,0,W,H);   // la fresque suit
   ECH = W/1920;
-  histo.length = 0; coulures.length = 0;
+  histo.length = 0; poids = 0; pileRefaire.length = 0; coulures.length = 0;
   tr.width=W; tr.height=H;
   masque.width=W; masque.height=H;
   seau.width=W; seau.height=H;
@@ -1899,6 +2332,16 @@ window.addEventListener("resize", function(){
 });
 document.addEventListener("fullscreenchange", function(){
   clearTimeout(tRedim); tRedim = setTimeout(ajuster, 220);
+});
+brancherCurseur();
+majRetours();
+photoPan=document.getElementById("photoPan");
+document.getElementById("photo").addEventListener("pointerdown", function(ev){
+  ev.stopPropagation(); clac();
+  if(!photoPan.hidden) fermerPhoto(); else ouvrirPhoto();
+});
+document.getElementById("photoFermer").addEventListener("pointerdown", function(ev){
+  ev.stopPropagation(); clac(); fermerPhoto();
 });
 poignee=document.getElementById("poignee");
 poignee.addEventListener("pointerdown", function(ev){ ev.stopPropagation(); clac(); basculerRepli(); });
