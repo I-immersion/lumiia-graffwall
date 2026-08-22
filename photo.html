@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — PHOTO v4.8 — cadrage tactile depuis le telephone -->
+<!-- LUMIIA MUR DE GRAFF — PHOTO v4.9 — cadrage tactile depuis le telephone -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -101,7 +101,7 @@
 
 <header>
   <h1><span>LUMIIA</span> Mur de Graff</h1>
-  <div id="ver">v4.8</div>
+  <div id="ver">v4.9</div>
   <div id="salle">—</div>
 </header>
 
@@ -641,7 +641,8 @@ function chargerObjet(id, d){
     .then(function(r){ return r.ok?r.json():null; })
     .then(function(ob){
       if(!ob) return;
-      var o={ id:id, type:ob.type, car:ob.car, nue:ob.nue, im:null, x:d.x, y:d.y, t:d.t, r:d.r };
+      var o={ id:id, type:ob.type, car:ob.car, nue:ob.nue, im:null, confirme:1,
+              x:d.x, y:d.y, t:d.t, r:d.r };
       if(ob.type==="sticker"){ objets[id]=o; rendre(); return; }
       var im=new Image();
       im.onload=function(){ o.im=im; objets[id]=o; rendre(); };
@@ -655,11 +656,12 @@ function relever(){
       p=p||{};
       for(var id in p){
         if(!objets[id]){ chargerObjet(id, p[id]); continue; }
+        objets[id].confirme=1;                                    // vu dans la base
         if(id===choisi && Object.keys(doigts).length) continue;   // ne pas contrarier le doigt
         var o=objets[id], d=p[id];
         o.x=d.x; o.y=d.y; o.t=d.t; o.r=d.r;
       }
-      for(var k in objets) if(!p[k]){
+      for(var k in objets) if(!p[k] && objets[k].confirme){
         delete objets[k];
         if(choisi===k) choisi=null;
       }
@@ -688,7 +690,14 @@ function deposer(contenu, o){
                { method:"PUT", body:JSON.stringify(contenu) })
     .then(function(r){
       if(!r.ok) return r.text().then(function(t){ throw new Error(r.status+" "+t.slice(0,50)); });
-      pousser(true);
+      return fetch(RTDB+"/graffwall/envois/"+salle+"/pos/"+o.id+".json",{
+        method:"PUT",
+        body: JSON.stringify({ x:o.x, y:o.y, t:o.t, r:o.r, colle:0, ts:Date.now() })
+      });
+    })
+    .then(function(r){
+      if(r && !r.ok) throw new Error("position refusee "+r.status);
+      o.confirme=1;
     });
 }
 

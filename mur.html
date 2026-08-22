@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v4.8 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v4.9 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v4.8</title>
+<title>LUMIIA Mur de Graff — v4.9</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -222,7 +222,7 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v4.8</i>
+    <i>v4.9</i>
   </div>
 
   <aside class="panneau" id="droite">
@@ -503,7 +503,7 @@ return { matrice: matrice };
 <script>
 (function(){
 "use strict";
-var VERSION = "v4.8";
+var VERSION = "v4.9";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -2017,7 +2017,7 @@ function releverPositions(){
         o.cx=d.x; o.cy=d.y; o.ct=d.t; o.cr=d.r;
         if(d.colle){ collerObjet(o); oublier(id); }
       }
-      for(var k in flottants) if(!p[k]) delete flottants[k];
+      for(var k in flottants) if(!p[k]){ delete flottants[k]; delete vus[k]; }
       majFixer(); reveiller();
     }).catch(function(){});
 
