@@ -23,6 +23,17 @@ ARCHIVES="$PARENT/Versions"
 SOURCES=("$HOME/Downloads" "$HOME/Desktop" "$DEPOT" "$PARENT")
 VENUS=()
 
+# --- une livraison groupee arrive en un seul zip : on le deballe d'abord ---
+for z in "$HOME/Downloads"/graffwall*.zip "$HOME/Desktop"/graffwall*.zip; do
+  [ -f "$z" ] || continue
+  if unzip -o -j -q "$z" -d "$HOME/Downloads" 'graffwall*.html' 2>/dev/null; then
+    gris "  archive deballee : $(basename "$z")"
+    rm -f "$z"
+  else
+    rouge "  archive illisible : $(basename "$z")"
+  fi
+done
+
 # --- cherche le fichier le plus recent correspondant aux motifs donnes ---
 trouver() {
   local cands=() d f
