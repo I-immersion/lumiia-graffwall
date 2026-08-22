@@ -17,7 +17,11 @@ vert()  { printf '\033[32m%s\033[0m\n' "$1"; }
 rouge() { printf '\033[31m%s\033[0m\n' "$1"; }
 gris()  { printf '\033[90m%s\033[0m\n' "$1"; }
 
-SOURCES=("$DEPOT" "$(dirname "$DEPOT")" "$HOME/Downloads" "$HOME/Desktop")
+PARENT="$(dirname "$DEPOT")"
+ARCHIVES="$PARENT/Versions"
+# Telechargements en premier : c'est la que les fichiers arrivent
+SOURCES=("$HOME/Downloads" "$HOME/Desktop" "$DEPOT" "$PARENT")
+VENUS=()
 
 # --- cherche le fichier le plus recent correspondant aux motifs donnes ---
 trouver() {
@@ -38,6 +42,7 @@ recuperer() {   # $1 = nom cible, $2 = motif exact, $3 = motif versionne
   if [ "$src" != "$DEPOT/$1" ]; then
     cp -f "$src" "$DEPOT/$1" || return 1
     gris "  $1  <-  $src"
+    VENUS+=("$src")
   else
     gris "  $1  (deja dans le depot)"
   fi
@@ -85,6 +90,20 @@ git commit -m "$VJEU jeu + galerie + photo" || exit 1
 if git push; then
   vert "En ligne : https://i-immersion.github.io/lumiia-graffwall/"
   echo "(GitHub Pages met une a deux minutes a se rafraichir)"
+
+  # --- rangement : les fichiers versionnes rejoignent les archives ---
+  mkdir -p "$ARCHIVES"
+  RANGES=0
+  for f in "${VENUS[@]:-}"; do
+    [ -z "$f" ] && continue
+    case "$(basename "$f")" in
+      graffwall_*_v*.html|graffwall_v*.html)
+        if [ "$(dirname "$f")" != "$ARCHIVES" ]; then
+          mv -f "$f" "$ARCHIVES/" 2>/dev/null && RANGES=$((RANGES+1))
+        fi ;;
+    esac
+  done
+  [ "$RANGES" -gt 0 ] && gris "  $RANGES fichier(s) range(s) dans $ARCHIVES"
 else
   rouge "Push refuse. Si le depot distant a de l'avance :"
   echo "  git pull --rebase origin main && git push"
