@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- LUMIIA MUR DE GRAFF — v4.9 — prototype tactile, resolution libre (1024x768 -> 4K) -->
+<!-- LUMIIA MUR DE GRAFF — v5.0 — prototype tactile, resolution libre (1024x768 -> 4K) -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>LUMIIA Mur de Graff — v4.9</title>
+<title>LUMIIA Mur de Graff — v5.0</title>
 <style>
   :root{
     --beton:#5f5a52;
@@ -179,7 +179,7 @@
 
   /* invitation a envoyer une photo */
   #photoPan{
-    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:35;
+    position:absolute;left:22px;top:22px;transform:scale(.8);transform-origin:top left;z-index:35;
     background:rgba(18,17,12,.97);border:3px solid var(--acid);border-radius:16px;
     padding:26px 30px 24px;box-shadow:0 18px 60px rgba(0,0,0,.75);
     display:flex;flex-direction:column;align-items:center;gap:14px;
@@ -191,10 +191,6 @@
   }
   #photoPan p{font-size:15px;color:rgba(242,240,230,.6);max-width:340px;text-align:center;line-height:1.5}
   #qr{background:#fff;padding:12px;border-radius:10px;display:block}
-  #salleCode{
-    font:800 26px/1 ui-monospace,Menlo,monospace;letter-spacing:.28em;
-    color:var(--acid);padding-left:.28em;
-  }
   #photoPan .btn{width:190px;height:58px;flex-direction:row;gap:9px}
 
   /* toast */
@@ -222,7 +218,7 @@
   <div id="enseigne">
     <b><span>LUMIIA</span> MUR DE GRAFF</b>
     <div id="coulure"></div>
-    <i>v4.9</i>
+    <i>v5.0</i>
   </div>
 
   <aside class="panneau" id="droite">
@@ -302,7 +298,6 @@
     <h2>Envoie ta photo</h2>
     <canvas id="qr" width="264" height="264"></canvas>
     <p>Scanne ce code avec ton téléphone. La photo apparaîtra sur le mur.</p>
-    <div id="salleCode"></div>
     <button class="btn" id="photoFermer">
       <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Fermer</span>
     </button>
@@ -503,7 +498,7 @@ return { matrice: matrice };
 <script>
 (function(){
 "use strict";
-var VERSION = "v4.9";
+var VERSION = "v5.0";
 var diag={actif:false, ev:0, emp:0, img:0, err:0, t0:0};  // compteurs (touche D)
 
 /* ================= adaptation a la resolution reelle ================= */
@@ -2031,7 +2026,6 @@ function ouvrirPhoto(){
   fermerMenu(); fermerCouleurs();
   var url = BASE_PHOTO+"?s="+salle;
   if(!dessinerQR(document.getElementById("qr"), url)) toast("QR indisponible");
-  document.getElementById("salleCode").textContent = salle;
   photoPan.hidden=false;
   if(!ecoute){ releverPositions(); ecoute=setInterval(releverPositions, 380); }
 }
